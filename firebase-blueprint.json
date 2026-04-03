@@ -1,0 +1,23 @@
+{
+  "entities": {
+    "Proposal": {
+      "title": "Proposal",
+      "description": "A proposal document containing markdown and a cover image.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "The title of the proposal." },
+        "markdownContent": { "type": "string", "description": "The markdown content." },
+        "coverImage": { "type": "string", "description": "Base64 encoded cover image." },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "authorUid": { "type": "string", "description": "Author UID." }
+      },
+      "required": ["title", "markdownContent", "createdAt", "authorUid"]
+    }
+  },
+  "firestore": {
+    "/proposals/{proposalId}": {
+      "schema": { "$ref": "#/entities/Proposal" },
+      "description": "Stores shared proposals."
+    }
+  }
+}
