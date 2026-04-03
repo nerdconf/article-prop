@@ -5,7 +5,7 @@ import {
   MessageCircle, Repeat2, Heart, BarChart2, Bookmark, Share, BadgeCheck, Upload, Loader2, Check,
   Bold, Italic, Strikethrough, Heading, Quote, List, ListOrdered, Link as LinkIcon, ImagePlus, X, Download
 } from 'lucide-react';
-import { db, auth, signInWithGoogle } from './firebase';
+import { db, auth, ensurePublishUser } from './firebase';
 import { collection, addDoc, getDoc, doc, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { MDXEditor, headingsPlugin, listsPlugin, quotePlugin, thematicBreakPlugin, markdownShortcutPlugin, toolbarPlugin, UndoRedo, BoldItalicUnderlineToggles, BlockTypeSelect, CreateLink, linkPlugin, linkDialogPlugin, MDXEditorMethods } from '@mdxeditor/editor';
@@ -126,7 +126,7 @@ export default function App() {
       
       let currentUser = user;
       if (!currentUser) {
-        currentUser = await signInWithGoogle();
+        currentUser = await ensurePublishUser();
       }
 
       let compressedImage = coverImage;
