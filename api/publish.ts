@@ -1,4 +1,4 @@
-import {getErrorResponse, parsePublishProposalInput, publishProposal} from '../server/proposals';
+import {getErrorResponse, parsePublishProposalInput, publishProposal} from './_lib/proposals';
 
 function getOrigin(request: { headers?: Record<string, string | string[] | undefined> }) {
   const forwardedProto = request.headers?.['x-forwarded-proto'];

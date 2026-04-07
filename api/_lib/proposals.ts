@@ -122,14 +122,11 @@ function parseStoredSnapshot(data: unknown): ProposalSnapshot {
     throw new ProposalApiError(500, 'Stored proposal payload is malformed.');
   }
 
-  const normalizedCoverImage: string | null =
-    coverImage === null ? null : (coverImage as string);
-
   return {
     id,
     title,
     markdownContent,
-    coverImage: normalizedCoverImage,
+    coverImage: coverImage === null ? null : (coverImage as string),
     createdAt,
   };
 }
