@@ -40,8 +40,8 @@ export default function App() {
   const [isCopied, setIsCopied] = useState(false);
 
   const urlParams = new URLSearchParams(window.location.search);
-  const proposalId = urlParams.get('id');
-  const isPublicView = !!proposalId;
+  const proposalSlug = urlParams.get('slug');
+  const isPublicView = !!proposalSlug;
 
   useEffect(() => {
     if (!isPublicView) {
@@ -56,14 +56,14 @@ export default function App() {
     let isCancelled = false;
 
     const loadProposal = async () => {
-      if (!proposalId) {
+      if (!proposalSlug) {
         setIsLoading(false);
         return;
       }
 
-      if (proposalId) {
+      if (proposalSlug) {
         try {
-          const response = await fetch(`/api/proposal?id=${encodeURIComponent(proposalId)}`);
+          const response = await fetch(`/api/proposal?slug=${encodeURIComponent(proposalSlug)}`);
           const payload = await readJsonResponse(response);
 
           if (!response.ok) {
@@ -94,7 +94,7 @@ export default function App() {
     return () => {
       isCancelled = true;
     };
-  }, [proposalId]);
+  }, [proposalSlug]);
 
   const compressImage = (dataUrl: string, maxWidth = 1200): Promise<string> => {
     return new Promise((resolve) => {

@@ -15,6 +15,19 @@ const MAX_TITLE_LENGTH = 200;
 const MAX_MARKDOWN_LENGTH = 500_000;
 const MAX_COVER_IMAGE_LENGTH = 2_000_000;
 const PROPOSAL_ID_PATTERN = /^[a-f0-9-]{36}$/i;
+const PROPOSAL_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+function generateSlug(title: string): string {
+  return title
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
+    .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
+    .trim()
+    .replace(/\s+/g, '-') // Replace spaces with hyphens
+    .replace(/-+/g, '-') // Replace multiple hyphens with single
+    .slice(0, 100); // Limit length
+}
 
 export class ProposalApiError extends Error {
   status: number;
@@ -37,8 +50,20 @@ function requireBlobToken() {
   }
 }
 
-function proposalPath(id: string) {
-  return `proposals/${id}.json`;
+function proposalPath(slug: string) {
+  return `proposals/${slug}.json`;
+}
+
+function assertValidProposalSlug(slug: string | null | undefined) {
+  if (!slug) {
+    throw new ProposalApiError(400, 'Missing proposal slug.');
+  }
+
+  if (!PROPOSAL_SLUG_PATTERN.test(slug)) {
+    throw new ProposalApiError(400, 'Invalid proposal slug.');
+  }
+
+  return slug;
 }
 
 function assertValidProposalId(id: string | null | undefined) {
@@ -134,10 +159,16 @@ function parseStoredSnapshot(data: unknown): ProposalSnapshot {
   };
 }
 
-export async function publishProposal(input: PublishProposalInput, origin: string) {
+export async function publishProposal(input: PublishProposalInput) {
   requireBlobToken();
 
   const id = crypto.randomUUID();
+  const slug = generateSlug(input.title);
+  
+  if (!slug) {
+    throw new ProposalApiError(400, 'Could not generate a valid URL slug from the title.');
+  }
+
   const snapshot: ProposalSnapshot = {
     id,
     title: input.title,
@@ -146,26 +177,26 @@ export async function publishProposal(input: PublishProposalInput, origin: strin
     createdAt: new Date().toISOString(),
   };
 
-  await put(proposalPath(id), JSON.stringify(snapshot), {
+  await put(proposalPath(slug), JSON.stringify(snapshot), {
     access: 'public',
     addRandomSuffix: false,
     contentType: 'application/json; charset=utf-8',
   });
 
-  const shareUrl = new URL('/', origin);
-  shareUrl.searchParams.set('id', id);
+  const shareUrl = `https://proposal.nerdconf.com/${slug}`;
 
   return {
     id,
-    shareUrl: shareUrl.toString(),
+    slug,
+    shareUrl,
   };
 }
 
-export async function fetchProposal(id: string | null | undefined) {
+export async function fetchProposal(slug: string | null | undefined) {
   requireBlobToken();
 
-  const validId = assertValidProposalId(id);
-  const path = proposalPath(validId);
+  const validSlug = assertValidProposalSlug(slug);
+  const path = proposalPath(validSlug);
   
   try {
     // Use list to find the blob by prefix, then fetch it
