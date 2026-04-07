@@ -180,6 +180,7 @@ export async function publishProposal(input: PublishProposalInput) {
   await put(proposalPath(slug), JSON.stringify(snapshot), {
     access: 'public',
     addRandomSuffix: false,
+    allowOverwrite: true,
     contentType: 'application/json; charset=utf-8',
   });
 
