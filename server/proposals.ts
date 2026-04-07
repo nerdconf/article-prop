@@ -146,17 +146,18 @@ export async function publishProposal(input: PublishProposalInput, origin: strin
     createdAt: new Date().toISOString(),
   };
 
-  await put(proposalPath(id), JSON.stringify(snapshot), {
+  const blob = await put(proposalPath(id), JSON.stringify(snapshot), {
     access: 'public',
     addRandomSuffix: false,
     contentType: 'application/json; charset=utf-8',
   });
 
   const shareUrl = new URL('/', origin);
-  shareUrl.searchParams.set('id', id);
+  shareUrl.searchParams.set('blob', blob.url);
 
   return {
     id,
+    blobUrl: blob.url,
     shareUrl: shareUrl.toString(),
   };
 }

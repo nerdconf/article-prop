@@ -1,6 +1,6 @@
 # Article Prop
 
-A Vite app for writing, previewing, and publishing proposal snapshots. Published proposals are stored in Vercel Blob and shared as public `?id=...` links.
+A Vite app for writing, previewing, and publishing proposal snapshots. Published proposals are stored in Vercel Blob and shared as public `?blob=...` links.
 
 ## Local development
 
@@ -24,4 +24,4 @@ Setup:
 
 The production app uses:
 - `POST /api/publish` to create immutable proposal snapshots
-- `GET /api/proposal?id=...` to load a published proposal
+- direct Blob-backed share links so the public viewer can load proposal JSON without a second server lookup

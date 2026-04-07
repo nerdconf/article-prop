@@ -9,6 +9,7 @@ import { MDXEditor, headingsPlugin, listsPlugin, quotePlugin, thematicBreakPlugi
 import { NerdConfLogo } from './components/NerdConfLogo';
 
 type ProposalResponse = {
+  id?: string;
   title: string;
   markdownContent: string;
   coverImage: string | null;
@@ -40,8 +41,43 @@ export default function App() {
   const [isCopied, setIsCopied] = useState(false);
 
   const urlParams = new URLSearchParams(window.location.search);
+  const blobUrl = urlParams.get('blob');
   const proposalId = urlParams.get('id');
-  const isPublicView = !!proposalId;
+  const isPublicView = !!(blobUrl || proposalId);
+
+  const loadBlobProposal = async (blobUrlParam: string) => {
+    let parsedUrl: URL;
+
+    try {
+      parsedUrl = new URL(blobUrlParam);
+    } catch {
+      throw new Error('Invalid proposal link.');
+    }
+
+    if (parsedUrl.protocol !== 'https:') {
+      throw new Error('Invalid proposal link.');
+    }
+
+    const response = await fetch(parsedUrl.toString());
+    const payload = await readJsonResponse(response);
+
+    if (!response.ok) {
+      throw new Error('Failed to load proposal.');
+    }
+
+    return payload as ProposalResponse;
+  };
+
+  const loadLegacyProposal = async (proposalIdParam: string) => {
+    const response = await fetch(`/api/proposal?id=${encodeURIComponent(proposalIdParam)}`);
+    const payload = await readJsonResponse(response);
+
+    if (!response.ok) {
+      throw new Error(payload?.error || 'Failed to load proposal.');
+    }
+
+    return payload as ProposalResponse;
+  };
 
   useEffect(() => {
     if (!isPublicView) {
@@ -56,31 +92,24 @@ export default function App() {
     let isCancelled = false;
 
     const loadProposal = async () => {
-      if (!proposalId) {
+      if (!blobUrl && !proposalId) {
         setIsLoading(false);
         return;
       }
 
-      if (proposalId) {
-        try {
-          const response = await fetch(`/api/proposal?id=${encodeURIComponent(proposalId)}`);
-          const payload = await readJsonResponse(response);
+      try {
+        const data = blobUrl
+          ? await loadBlobProposal(blobUrl)
+          : await loadLegacyProposal(proposalId as string);
 
-          if (!response.ok) {
-            throw new Error(payload?.error || 'Failed to load proposal.');
-          }
-
-          const data = payload as ProposalResponse;
-
-          if (!isCancelled) {
-            setMarkdownContent(data.markdownContent);
-            setCoverImage(data.coverImage || null);
-          }
-        } catch (err) {
-          console.error(err);
-          if (!isCancelled) {
-            setError(err instanceof Error ? err.message : 'Failed to load proposal.');
-          }
+        if (!isCancelled) {
+          setMarkdownContent(data.markdownContent);
+          setCoverImage(data.coverImage || null);
+        }
+      } catch (err) {
+        console.error(err);
+        if (!isCancelled) {
+          setError(err instanceof Error ? err.message : 'Failed to load proposal.');
         }
       }
 
@@ -94,7 +123,7 @@ export default function App() {
     return () => {
       isCancelled = true;
     };
-  }, [proposalId]);
+  }, [blobUrl, proposalId]);
 
   const compressImage = (dataUrl: string, maxWidth = 1200): Promise<string> => {
     return new Promise((resolve) => {
