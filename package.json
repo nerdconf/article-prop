@@ -11,14 +11,12 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
+    "@vercel/blob": "^0.27.0",
     "@google/genai": "^1.29.0",
     "@mdxeditor/editor": "^3.53.1",
     "@tailwindcss/typography": "^0.5.19",
     "@tailwindcss/vite": "^4.1.14",
     "@vitejs/plugin-react": "^5.0.4",
-    "dotenv": "^17.2.3",
-    "express": "^4.21.2",
-    "firebase": "^12.11.0",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
     "react": "^19.0.0",

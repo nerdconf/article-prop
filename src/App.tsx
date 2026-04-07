@@ -2,58 +2,46 @@ import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { 
-  MessageCircle, Repeat2, Heart, BarChart2, Bookmark, Share, BadgeCheck, Upload, Loader2, Check,
-  Bold, Italic, Strikethrough, Heading, Quote, List, ListOrdered, Link as LinkIcon, ImagePlus, X, Download
+  MessageCircle, Repeat2, Heart, BarChart2, Bookmark, BadgeCheck, Upload, Loader2, Check,
+  Link as LinkIcon, ImagePlus, X, Download
 } from 'lucide-react';
-import { db, auth, ensurePublishUser } from './firebase';
-import { collection, addDoc, getDoc, doc, query, orderBy, onSnapshot } from 'firebase/firestore';
-import { onAuthStateChanged } from 'firebase/auth';
 import { MDXEditor, headingsPlugin, listsPlugin, quotePlugin, thematicBreakPlugin, markdownShortcutPlugin, toolbarPlugin, UndoRedo, BoldItalicUnderlineToggles, BlockTypeSelect, CreateLink, linkPlugin, linkDialogPlugin, MDXEditorMethods } from '@mdxeditor/editor';
 import { NerdConfLogo } from './components/NerdConfLogo';
+
+type ProposalResponse = {
+  title: string;
+  markdownContent: string;
+  coverImage: string | null;
+  createdAt: string;
+};
+
+async function readJsonResponse(response: Response) {
+  const contentType = response.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    return null;
+  }
+
+  return response.json();
+}
 
 export default function App() {
   const [markdownContent, setMarkdownContent] = useState<string>('');
   const [coverImage, setCoverImage] = useState<string | null>(null);
-  const [replyText, setReplyText] = useState('');
   
-  // Share & Auth State
   const [isSharing, setIsSharing] = useState(false);
   const [shareLink, setShareLink] = useState<string | null>(null);
-  const [user, setUser] = useState(auth.currentUser);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Editor State
   const [isEditing, setIsEditing] = useState(false);
   const editorRef = useRef<MDXEditorMethods>(null);
 
-  // Modal State
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
 
   const urlParams = new URLSearchParams(window.location.search);
   const proposalId = urlParams.get('id');
   const isPublicView = !!proposalId;
-
-  // Comments State
-  const [comments, setComments] = useState<any[]>([]);
-
-  useEffect(() => {
-    if (proposalId) {
-      const q = query(
-        collection(db, 'proposals', proposalId, 'comments'),
-        orderBy('createdAt', 'desc')
-      );
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        const commentsData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        setComments(commentsData);
-      });
-      return () => unsubscribe();
-    }
-  }, [proposalId]);
 
   useEffect(() => {
     if (!isPublicView) {
@@ -65,33 +53,47 @@ export default function App() {
   }, [isPublicView]);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-    });
-    return () => unsubscribe();
-  }, []);
+    let isCancelled = false;
 
-  useEffect(() => {
     const loadProposal = async () => {
+      if (!proposalId) {
+        setIsLoading(false);
+        return;
+      }
+
       if (proposalId) {
         try {
-          const docRef = doc(db, 'proposals', proposalId);
-          const docSnap = await getDoc(docRef);
-          if (docSnap.exists()) {
-            const data = docSnap.data();
+          const response = await fetch(`/api/proposal?id=${encodeURIComponent(proposalId)}`);
+          const payload = await readJsonResponse(response);
+
+          if (!response.ok) {
+            throw new Error(payload?.error || 'Failed to load proposal.');
+          }
+
+          const data = payload as ProposalResponse;
+
+          if (!isCancelled) {
             setMarkdownContent(data.markdownContent);
-            if (data.coverImage) setCoverImage(data.coverImage);
-          } else {
-            setError('Proposal not found.');
+            setCoverImage(data.coverImage || null);
           }
         } catch (err) {
           console.error(err);
-          setError('Failed to load proposal.');
+          if (!isCancelled) {
+            setError(err instanceof Error ? err.message : 'Failed to load proposal.');
+          }
         }
       }
-      setIsLoading(false);
+
+      if (!isCancelled) {
+        setIsLoading(false);
+      }
     };
+
     loadProposal();
+
+    return () => {
+      isCancelled = true;
+    };
   }, [proposalId]);
 
   const compressImage = (dataUrl: string, maxWidth = 1200): Promise<string> => {
@@ -123,11 +125,6 @@ export default function App() {
     
     try {
       setIsSharing(true);
-      
-      let currentUser = user;
-      if (!currentUser) {
-        currentUser = await ensurePublishUser();
-      }
 
       let compressedImage = coverImage;
       if (coverImage && coverImage.length > 800000) {
@@ -137,17 +134,27 @@ export default function App() {
       const titleMatch = markdownContent.match(/^#\s+(.+)$/m);
       const title = titleMatch ? titleMatch[1] : 'Proposal Draft';
 
-      const docRef = await addDoc(collection(db, 'proposals'), {
-        title,
-        markdownContent,
-        coverImage: compressedImage,
-        createdAt: new Date().toISOString(),
-        authorUid: currentUser.uid
+      const response = await fetch('/api/publish', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          title,
+          markdownContent,
+          coverImage: compressedImage ?? null,
+        }),
       });
 
-      const url = new URL(window.location.href);
-      url.searchParams.set('id', docRef.id);
-      const link = url.toString();
+      const payload = await readJsonResponse(response);
+      if (!response.ok) {
+        throw new Error(payload?.error || 'Failed to share proposal.');
+      }
+
+      const link = payload?.shareUrl;
+      if (typeof link !== 'string') {
+        throw new Error('Publish API returned an invalid share URL.');
+      }
       
       setShareLink(link);
       await navigator.clipboard.writeText(link);
@@ -155,7 +162,7 @@ export default function App() {
       
     } catch (err) {
       console.error("Error sharing:", err);
-      alert("Failed to share proposal. Please try again.");
+      alert(err instanceof Error ? err.message : 'Failed to share proposal. Please try again.');
     } finally {
       setIsSharing(false);
     }
@@ -183,30 +190,6 @@ export default function App() {
       };
       reader.readAsDataURL(file);
     }
-  };
-
-  const handleSendReply = async () => {
-    if (!replyText.trim()) return;
-    
-    if (proposalId) {
-      try {
-        await addDoc(collection(db, 'proposals', proposalId, 'comments'), {
-          text: replyText,
-          authorName: 'Futuro Cliente 🤑',
-          createdAt: new Date().toISOString()
-        });
-      } catch (e) {
-        console.error("Error adding comment: ", e);
-      }
-    }
-
-    const titleMatch = markdownContent.match(/^#\s+(.+)$/m);
-    const title = titleMatch ? titleMatch[1] : 'Proposal Draft';
-    const subject = encodeURIComponent(`Feedback on Proposal: ${title}`);
-    const body = encodeURIComponent(replyText);
-    window.location.href = `mailto:hey@nerdconf.com?subject=${subject}&body=${body}`;
-    
-    setReplyText('');
   };
 
   const handleDownloadMd = () => {
@@ -283,7 +266,7 @@ export default function App() {
               </button>
               <button 
                 onClick={handleShare}
-                disabled={isSharing || !coverImage || !markdownContent}
+                disabled={isSharing || !markdownContent.trim()}
                 className="bg-[#1d9bf0] hover:bg-[#1a8cd8] disabled:opacity-50 text-white font-bold py-1.5 px-4 rounded-full transition-colors flex items-center space-x-2 text-sm"
               >
                 {isSharing ? <Loader2 className="w-4 h-4 animate-spin" /> : <span>Publish</span>}
@@ -484,60 +467,6 @@ export default function App() {
                   </div>
                 </div>
               </div>
-
-              {/* Reply Input Box */}
-              <div className="flex items-start space-x-3 mb-6">
-                <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center text-gray-500 flex-shrink-0 overflow-hidden">
-                  <svg viewBox="0 0 24 24" aria-hidden="true" className="w-6 h-6 fill-current"><g><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3.2c1.93 0 3.5 1.57 3.5 3.5S13.93 12.2 12 12.2s-3.5-1.57-3.5-3.5S10.07 5.2 12 5.2zm0 13.6c-2.83 0-5.26-1.54-6.59-3.8.1-2.18 4.39-3.38 6.59-3.38s6.49 1.2 6.59 3.38c-1.33 2.26-3.76 3.8-6.59 3.8z"></path></g></svg>
-                </div>
-                <div className="flex-1">
-                  <textarea 
-                    value={replyText}
-                    onChange={(e) => setReplyText(e.target.value)}
-                    placeholder="Post your feedback or approval..." 
-                    className="w-full bg-transparent text-xl text-white placeholder-gray-500 outline-none resize-none min-h-[44px] pt-2"
-                    rows={replyText ? 3 : 1}
-                  />
-                  <div className="flex justify-between items-center mt-2 pt-2 border-t border-gray-800">
-                    <div className="flex space-x-2 text-[#1d9bf0]">
-                      {/* Fake attachment icons */}
-                      <div className="p-2 rounded-full hover:bg-[#1d9bf0]/10 cursor-pointer"><svg viewBox="0 0 24 24" className="w-5 h-5 fill-current"><g><path d="M3 5.5C3 4.119 4.119 3 5.5 3h13C19.881 3 21 4.119 21 5.5v13c0 1.381-1.119 2.5-2.5 2.5h-13C4.119 21 3 19.881 3 18.5v-13zM5.5 5c-.276 0-.5.224-.5.5v9.086l3-3 3 3 5-5 3 3V5.5c0-.276-.224-.5-.5-.5h-13zM19 15.414l-3-3-5 5-3-3-3 3V18.5c0 .276.224.5.5.5h13c.276 0 .5-.224.5-.5v-3.086zM9.75 7C8.784 7 8 7.784 8 8.75s.784 1.75 1.75 1.75 1.75-.784 1.75-1.75S10.716 7 9.75 7z"></path></g></svg></div>
-                    </div>
-                    <button 
-                      onClick={handleSendReply}
-                      disabled={!replyText.trim()}
-                      className="bg-[#1d9bf0] hover:bg-[#1a8cd8] disabled:opacity-50 disabled:hover:bg-[#1d9bf0] text-white font-bold py-1.5 px-4 rounded-full transition-colors"
-                    >
-                      Reply
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="border-t border-gray-800 mb-4"></div>
-
-              {/* Dynamic Comments */}
-              {comments.map((comment) => (
-                <div key={comment.id} className="flex items-start space-x-3 pt-4 pb-4 border-b border-gray-800">
-                  <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center overflow-hidden flex-shrink-0">
-                    <span className="text-xl">💼</span>
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-1">
-                      <span className="font-bold text-[#e7e9ea] hover:underline cursor-pointer">{comment.authorName}</span>
-                      <span className="text-[#71767b] text-sm">· {new Date(comment.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-                    </div>
-                    <p className="text-[#e7e9ea] mt-1 whitespace-pre-wrap">
-                      {comment.text}
-                    </p>
-                    <div className="flex items-center space-x-6 mt-3 text-[#71767b]">
-                      <div className="flex items-center space-x-2 hover:text-[#1d9bf0] cursor-pointer group"><MessageCircle className="w-4 h-4" /></div>
-                      <div className="flex items-center space-x-2 hover:text-[#00ba7c] cursor-pointer group"><Repeat2 className="w-4 h-4" /></div>
-                      <div className="flex items-center space-x-2 hover:text-[#f91880] cursor-pointer group"><Heart className="w-4 h-4" /></div>
-                    </div>
-                  </div>
-                </div>
-              ))}
 
               {/* Threaded Reply 1: Next Steps */}
               <div className="flex items-start space-x-3 pt-4 pb-4 border-b border-gray-800">
