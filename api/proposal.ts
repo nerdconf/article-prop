@@ -1,4 +1,4 @@
-import {fetchProposal, getErrorResponse} from './_lib/proposals';
+import {fetchProposal, getErrorResponse} from './_lib/proposals.js';
 
 export default async function handler(request: any, response: any) {
   if (request.method !== 'GET') {

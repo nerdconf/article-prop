@@ -7,7 +7,7 @@ import {
   ProposalApiError,
   parsePublishProposalInput,
   publishProposal,
-} from '../api/_lib/proposals';
+} from '../api/_lib/proposals.js';
 
 function getRequestOrigin(request: IncomingMessage) {
   const protoHeader = request.headers['x-forwarded-proto'];
