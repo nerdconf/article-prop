@@ -1,4 +1,4 @@
-import { BlobNotFoundError, head, put } from '@vercel/blob';
+import { put, list } from '@vercel/blob';
 
 export interface PublishProposalInput {
   title: string;
@@ -165,22 +165,33 @@ export async function fetchProposal(id: string | null | undefined) {
   requireBlobToken();
 
   const validId = assertValidProposalId(id);
+  const path = proposalPath(validId);
+  
   try {
-    const blob = await head(proposalPath(validId));
+    // Use list to find the blob by prefix, then fetch it
+    const { blobs } = await list({ prefix: path });
+    
+    if (blobs.length === 0) {
+      throw new ProposalApiError(404, 'Proposal not found.');
+    }
+    
+    const blob = blobs[0];
     const response = await fetch(blob.url);
 
     if (!response.ok) {
-      throw new ProposalApiError(404, 'Proposal not found.');
+      throw new ProposalApiError(500, 'Failed to fetch proposal content.');
     }
 
     const payload = await response.json();
     return parseStoredSnapshot(payload);
   } catch (error) {
-    if (error instanceof BlobNotFoundError) {
-      throw new ProposalApiError(404, 'Proposal not found.');
+    if (error instanceof ProposalApiError) {
+      throw error;
     }
-
-    throw error;
+    
+    // Handle fetch errors (network issues, etc.)
+    console.error('Fetch error:', error);
+    throw new ProposalApiError(500, 'Failed to fetch proposal.');
   }
 }
 

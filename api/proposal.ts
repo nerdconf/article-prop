@@ -1,11 +1,17 @@
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 import {fetchProposal, getErrorResponse} from '../server/proposals';
 
-export async function GET(request: Request) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'GET') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
   try {
-    const proposal = await fetchProposal(new URL(request.url).searchParams.get('id'));
-    return Response.json(proposal);
+    const id = req.query.id as string | undefined;
+    const proposal = await fetchProposal(id);
+    return res.status(200).json(proposal);
   } catch (error) {
     const failure = getErrorResponse(error);
-    return Response.json(failure.body, {status: failure.status});
+    return res.status(failure.status).json(failure.body);
   }
 }
