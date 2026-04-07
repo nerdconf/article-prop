@@ -28,9 +28,8 @@ export class ProposalApiError extends Error {
 
 function requireBlobToken() {
   const token = process.env.BLOB_READ_WRITE_TOKEN;
-  console.log('[v0] Checking BLOB_READ_WRITE_TOKEN:', token ? 'present' : 'missing');
 
-  if (!token || token.startsWith('REPLACE_WITH_')) {
+  if (!token) {
     throw new ProposalApiError(
       500,
       'BLOB_READ_WRITE_TOKEN is not configured. Add it in Vercel and in your local .env.local.'
