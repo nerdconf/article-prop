@@ -26,6 +26,7 @@ async function readJsonResponse(response: Response) {
 }
 
 export default function App() {
+  const [proposalTitle, setProposalTitle] = useState('Proposal Draft');
   const [markdownContent, setMarkdownContent] = useState<string>('');
   const [coverImage, setCoverImage] = useState<string | null>(null);
   
@@ -83,10 +84,14 @@ export default function App() {
     if (!isPublicView) {
       setIsEditing(true);
       if (!markdownContent) {
-        setMarkdownContent('# Proposal Title\n\nStart writing your proposal here...');
+        setMarkdownContent('Start writing your proposal here...');
       }
     }
   }, [isPublicView]);
+
+  useEffect(() => {
+    document.title = proposalTitle.trim() || 'Proposal Draft';
+  }, [proposalTitle]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -103,6 +108,7 @@ export default function App() {
           : await loadLegacyProposal(proposalId as string);
 
         if (!isCancelled) {
+          setProposalTitle(data.title || 'Proposal Draft');
           setMarkdownContent(data.markdownContent);
           setCoverImage(data.coverImage || null);
         }
@@ -160,8 +166,7 @@ export default function App() {
         compressedImage = await compressImage(coverImage);
       }
 
-      const titleMatch = markdownContent.match(/^#\s+(.+)$/m);
-      const title = titleMatch ? titleMatch[1] : 'Proposal Draft';
+      const title = proposalTitle.trim() || 'Proposal Draft';
 
       const response = await fetch('/api/publish', {
         method: 'POST',
@@ -203,7 +208,11 @@ export default function App() {
       const reader = new FileReader();
       reader.onload = (e) => {
         const newContent = e.target?.result as string;
+        const uploadedTitleMatch = newContent.match(/^#\s+(.+)$/m);
         setMarkdownContent(newContent);
+        if (uploadedTitleMatch && (!proposalTitle.trim() || proposalTitle === 'Proposal Draft')) {
+          setProposalTitle(uploadedTitleMatch[1].trim());
+        }
         editorRef.current?.setMarkdown(newContent);
       };
       reader.readAsText(file);
@@ -223,8 +232,7 @@ export default function App() {
 
   const handleDownloadMd = () => {
     if (!markdownContent) return;
-    const titleMatch = markdownContent.match(/^#\s+(.+)$/m);
-    const title = titleMatch ? titleMatch[1] : 'Proposal';
+    const title = proposalTitle.trim() || 'Proposal';
     const filename = `${title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.md`;
     
     const blob = new Blob([markdownContent], { type: 'text/markdown' });
@@ -263,12 +271,10 @@ export default function App() {
     );
   }
 
-  // Extract title from markdown (first # heading) or use default
-  const titleMatch = markdownContent.match(/^#\s+(.+)$/m);
-  const title = titleMatch ? titleMatch[1] : 'Proposal Draft';
-  
-  // Remove the title from the content so it doesn't duplicate in reader view
-  const contentWithoutTitle = markdownContent.replace(/^#\s+(.+)$/m, '').trim();
+  const title = proposalTitle.trim() || 'Proposal Draft';
+  const contentWithoutTitle = markdownContent.replace(/^#\s+(.+)$/m, (_, headingTitle: string) => {
+    return headingTitle.trim() === title ? '' : `# ${headingTitle}`;
+  }).trim();
 
   return (
     <div className="min-h-screen bg-black text-[#e7e9ea] font-sans selection:bg-[#1d9bf0] selection:text-white pb-20">
@@ -287,6 +293,13 @@ export default function App() {
                 <span className="hidden sm:inline-block">Upload .md</span>
                 <input type="file" accept=".md" className="hidden" onChange={handleFileUpload} />
               </label>
+              <input
+                type="text"
+                value={proposalTitle}
+                onChange={(event) => setProposalTitle(event.target.value)}
+                placeholder="Proposal title"
+                className="w-44 sm:w-56 bg-[#16181c] border border-gray-800 rounded-lg px-3 py-1.5 text-sm text-[#e7e9ea] outline-none focus:border-[#1d9bf0]"
+              />
               <button 
                 onClick={() => setIsEditing(!isEditing)}
                 className="text-[#1d9bf0] font-bold hover:underline text-sm"
