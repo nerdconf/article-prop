@@ -9,13 +9,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const body = req.body;
     const input = parsePublishProposalInput(body);
-    
-    // Construct origin from request headers
-    const protocol = req.headers['x-forwarded-proto'] || 'https';
-    const host = req.headers['x-forwarded-host'] || req.headers.host || 'localhost';
-    const origin = `${protocol}://${host}`;
-    
-    const result = await publishProposal(input, origin);
+    const result = await publishProposal(input);
     return res.status(200).json(result);
   } catch (error) {
     const failure = getErrorResponse(error);

@@ -7,8 +7,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const id = req.query.id as string | undefined;
-    const proposal = await fetchProposal(id);
+    const slug = req.query.slug as string | undefined;
+    const proposal = await fetchProposal(slug);
     return res.status(200).json(proposal);
   } catch (error) {
     const failure = getErrorResponse(error);
