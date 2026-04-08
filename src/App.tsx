@@ -19,6 +19,9 @@ type ProposalResponse = {
 
 const DEFAULT_PROPOSAL_TITLE = 'Proposal Draft';
 const DEFAULT_PROPOSAL_SLUG = 'proposal-draft';
+const NERDCONF_PROFILE_URL = 'https://x.com/nerdconf_ar';
+const NERDCONF_PROFILE_IMAGE =
+  'https://pbs.twimg.com/profile_images/1969167638963142656/LavpBww0_400x400.jpg';
 
 function slugify(value: string) {
   return value
@@ -52,6 +55,43 @@ async function readJsonResponse(response: Response) {
   return response.json();
 }
 
+function LikeButton({
+  liked,
+  burstVisible,
+  onClick,
+  label,
+  size = 'sm',
+}: {
+  liked: boolean;
+  burstVisible: boolean;
+  onClick: () => void;
+  label?: string;
+  size?: 'sm' | 'xs';
+}) {
+  const iconSizeClass = size === 'xs' ? 'w-4 h-4' : 'w-5 h-5';
+  const textSizeClass = size === 'xs' ? 'text-xs' : 'text-sm';
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`relative flex items-center space-x-1.5 transition-colors ${
+        liked ? 'text-[#f91880]' : 'text-[#71767b] hover:text-[#f91880]'
+      }`}
+      aria-pressed={liked}
+      title={liked ? 'Unlike' : 'Like'}
+    >
+      {burstVisible && (
+        <span className="absolute left-0 top-1/2 h-8 w-8 -translate-x-1/4 -translate-y-1/2 rounded-full bg-[#f91880]/20 animate-ping pointer-events-none" />
+      )}
+      <Heart
+        className={`${iconSizeClass} transition-all duration-200 ${liked ? 'fill-current scale-110' : ''}`}
+      />
+      {label ? <span className={textSizeClass}>{label}</span> : null}
+    </button>
+  );
+}
+
 export default function App() {
   const [proposalTitle, setProposalTitle] = useState(DEFAULT_PROPOSAL_TITLE);
   const [proposalSlug, setProposalSlug] = useState(DEFAULT_PROPOSAL_SLUG);
@@ -69,6 +109,9 @@ export default function App() {
 
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
+  const [isLiked, setIsLiked] = useState(false);
+  const [showLikeBurst, setShowLikeBurst] = useState(false);
+  const likeBurstTimeoutRef = useRef<number | null>(null);
 
   const urlParams = new URLSearchParams(window.location.search);
   const blobUrl = urlParams.get('blob');
@@ -139,6 +182,14 @@ export default function App() {
   useEffect(() => {
     document.title = proposalTitle.trim() || DEFAULT_PROPOSAL_TITLE;
   }, [proposalTitle]);
+
+  useEffect(() => {
+    return () => {
+      if (likeBurstTimeoutRef.current !== null) {
+        window.clearTimeout(likeBurstTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     let isCancelled = false;
@@ -300,6 +351,31 @@ export default function App() {
     URL.revokeObjectURL(url);
   };
 
+  const handleLikeToggle = () => {
+    const nextLikedState = !isLiked;
+    setIsLiked(nextLikedState);
+
+    if (!nextLikedState) {
+      setShowLikeBurst(false);
+      if (likeBurstTimeoutRef.current !== null) {
+        window.clearTimeout(likeBurstTimeoutRef.current);
+        likeBurstTimeoutRef.current = null;
+      }
+      return;
+    }
+
+    setShowLikeBurst(true);
+
+    if (likeBurstTimeoutRef.current !== null) {
+      window.clearTimeout(likeBurstTimeoutRef.current);
+    }
+
+    likeBurstTimeoutRef.current = window.setTimeout(() => {
+      setShowLikeBurst(false);
+      likeBurstTimeoutRef.current = null;
+    }, 600);
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
@@ -450,83 +526,82 @@ export default function App() {
         </main>
       ) : (
         <main className="max-w-[600px] mx-auto w-full border-x border-gray-800 min-h-screen">
-          
-          {/* Cover Image */}
+          <div className="px-4 pt-4">
+            <a
+              href={NERDCONF_PROFILE_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center space-x-3 group"
+            >
+              <div className="w-12 h-12 rounded-full overflow-hidden border border-gray-800 bg-[#060d1a] flex-shrink-0">
+                <img
+                  src={NERDCONF_PROFILE_IMAGE}
+                  alt="@NERDCONF profile"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center space-x-1">
+                  <span className="font-bold text-[#e7e9ea] group-hover:underline text-lg">NERDCONF</span>
+                  <BadgeCheck className="w-5 h-5 text-[#1d9bf0]" fill="currentColor" />
+                </div>
+                <div className="text-[#71767b] text-sm">@nerdconf_ar</div>
+              </div>
+            </a>
+          </div>
+
           {coverImage ? (
-            <div className="w-full aspect-[21/9] bg-gray-900 overflow-hidden">
+            <div className="mt-4 w-full aspect-[21/9] bg-gray-900 overflow-hidden">
               <img src={coverImage} alt="Cover" className="w-full h-full object-cover" />
             </div>
           ) : (
-            <div className="w-full aspect-[21/9] bg-gradient-to-br from-gray-900 to-black border-b border-gray-800 flex items-center justify-center">
+            <div className="mt-4 w-full aspect-[21/9] bg-gradient-to-br from-gray-900 to-black flex items-center justify-center">
               <span className="text-gray-600 font-mono text-sm">No cover image uploaded</span>
             </div>
           )}
 
-          <div className="px-4 pt-4 pb-6">
-            {/* Title */}
-            <h1 className="text-3xl sm:text-4xl font-bold text-[#e7e9ea] mb-4 leading-tight tracking-tight">
+          <div className="px-4 pt-5 pb-6">
+            <h1 className="text-[2.45rem] sm:text-[3.15rem] font-bold text-[#e7e9ea] mb-4 leading-[0.98] tracking-tight">
               {title}
             </h1>
 
-            {/* Author Block */}
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-full bg-[#060d1a] flex items-center justify-center overflow-hidden border border-gray-800">
-                  <NerdConfLogo />
+            <div className="flex items-center justify-between pb-4 text-[#71767b]">
+              <div className="flex items-center gap-4 sm:gap-6 min-w-0">
+                <div className="flex items-center space-x-1.5">
+                  <MessageCircle className="w-5 h-5" />
+                  <span className="text-sm">Discuss</span>
                 </div>
-                <div className="flex flex-col">
-                  <div className="flex items-center space-x-1">
-                    <span className="font-bold text-[#e7e9ea] hover:underline cursor-pointer">NERDCONF</span>
-                    <BadgeCheck className="w-4 h-4 text-[#1d9bf0]" fill="currentColor" />
-                    <span className="text-xs border border-gray-600 text-gray-400 rounded px-1 ml-1 hidden sm:inline-block">PRO</span>
-                  </div>
-                  <div className="text-[#71767b] text-sm">
-                    @nerdconf_ar · {new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
-                  </div>
+                <div className="flex items-center space-x-1.5">
+                  <Repeat2 className="w-5 h-5" />
+                  <span className="text-sm">v1.0</span>
                 </div>
+                <LikeButton
+                  liked={isLiked}
+                  burstVisible={showLikeBurst}
+                  onClick={handleLikeToggle}
+                  label="Approve"
+                />
+                <div className="hidden sm:flex items-center space-x-1.5">
+                  <BarChart2 className="w-5 h-5" />
+                  <span className="text-sm">Confidential</span>
+                </div>
+              </div>
+              <div className="flex items-center space-x-3 ml-4">
+                <div className="text-[#1d9bf0]">
+                  <Bookmark className="w-5 h-5" fill="currentColor" />
+                </div>
+                <button
+                  onClick={handleDownloadMd}
+                  className="flex items-center space-x-1.5 text-[#1d9bf0] hover:text-[#63b3ff] transition-colors"
+                  title=".md"
+                >
+                  <Download className="w-5 h-5" />
+                  <span className="text-sm font-medium">.md</span>
+                </button>
               </div>
             </div>
 
-            {/* Metrics Bar */}
-            <div className="flex items-center justify-between py-3 border-y border-gray-800 mb-6 text-[#71767b]">
-              <div className="flex items-center space-x-2 hover:text-[#1d9bf0] cursor-pointer transition-colors group">
-                <div className="p-2 rounded-full group-hover:bg-[#1d9bf0]/10 transition-colors">
-                  <MessageCircle className="w-5 h-5" />
-                </div>
-                <span className="text-sm">Discuss</span>
-              </div>
-              <div className="flex items-center space-x-2 hover:text-[#00ba7c] cursor-pointer transition-colors group">
-                <div className="p-2 rounded-full group-hover:bg-[#00ba7c]/10 transition-colors">
-                  <Repeat2 className="w-5 h-5" />
-                </div>
-                <span className="text-sm">v1.0</span>
-              </div>
-              <div className="flex items-center space-x-2 hover:text-[#f91880] cursor-pointer transition-colors group">
-                <div className="p-2 rounded-full group-hover:bg-[#f91880]/10 transition-colors">
-                  <Heart className="w-5 h-5" />
-                </div>
-                <span className="text-sm">Approve</span>
-              </div>
-              <div className="flex items-center space-x-2 hover:text-[#1d9bf0] cursor-pointer transition-colors group">
-                <div className="p-2 rounded-full group-hover:bg-[#1d9bf0]/10 transition-colors">
-                  <BarChart2 className="w-5 h-5" />
-                </div>
-                <span className="text-sm">Confidential</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={handleDownloadMd}
-                  className="flex items-center space-x-2 px-3 py-2 rounded-full border border-gray-800 hover:border-[#1d9bf0]/40 hover:bg-[#1d9bf0]/10 hover:text-[#1d9bf0] transition-colors"
-                  title=".md"
-                >
-                  <Download className="w-4 h-4" />
-                  <span className="text-sm font-medium">.md</span>
-                </button>
-                <div className="p-2 rounded-full hover:bg-[#1d9bf0]/10 hover:text-[#1d9bf0] cursor-pointer transition-colors">
-                  <Bookmark className="w-5 h-5" />
-                </div>
-              </div>
-            </div>
+            <div className="border-t border-gray-800 pt-6">
 
             {/* Markdown Content */}
             <div className="prose prose-invert prose-lg max-w-none 
@@ -545,6 +620,7 @@ export default function App() {
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
                 {contentWithoutTitle}
               </ReactMarkdown>
+            </div>
             </div>
 
             {/* --- BOTTOM ENGAGEMENT SECTION --- */}
@@ -573,11 +649,13 @@ export default function App() {
                   </div>
                   <span className="text-sm">Revise</span>
                 </div>
-                <div className="flex items-center space-x-2 hover:text-[#f91880] cursor-pointer transition-colors group">
-                  <div className="p-2 rounded-full group-hover:bg-[#f91880]/10 transition-colors">
-                    <Heart className="w-5 h-5" />
-                  </div>
-                  <span className="text-sm">Approve</span>
+                <div className="p-2 rounded-full hover:bg-[#f91880]/10 transition-colors">
+                  <LikeButton
+                    liked={isLiked}
+                    burstVisible={showLikeBurst}
+                    onClick={handleLikeToggle}
+                    label="Approve"
+                  />
                 </div>
                 <div className="flex items-center space-x-1">
                   <div className="p-2 rounded-full hover:bg-[#1d9bf0]/10 hover:text-[#1d9bf0] cursor-pointer transition-colors">
@@ -603,7 +681,12 @@ export default function App() {
                   <div className="flex items-center space-x-6 mt-3 text-[#71767b]">
                     <div className="flex items-center space-x-2 hover:text-[#1d9bf0] cursor-pointer group"><MessageCircle className="w-4 h-4" /></div>
                     <div className="flex items-center space-x-2 hover:text-[#00ba7c] cursor-pointer group"><Repeat2 className="w-4 h-4" /></div>
-                    <div className="flex items-center space-x-2 hover:text-[#f91880] cursor-pointer group"><Heart className="w-4 h-4" /></div>
+                    <LikeButton
+                      liked={isLiked}
+                      burstVisible={showLikeBurst}
+                      onClick={handleLikeToggle}
+                      size="xs"
+                    />
                   </div>
                 </div>
               </div>
@@ -625,7 +708,15 @@ export default function App() {
                   <div className="flex items-center space-x-6 mt-3 text-[#71767b]">
                     <div className="flex items-center space-x-2 hover:text-[#1d9bf0] cursor-pointer group"><MessageCircle className="w-4 h-4" /><span className="text-xs">1.2K</span></div>
                     <div className="flex items-center space-x-2 hover:text-[#00ba7c] cursor-pointer group"><Repeat2 className="w-4 h-4" /><span className="text-xs">4.5K</span></div>
-                    <div className="flex items-center space-x-2 hover:text-[#f91880] cursor-pointer group"><Heart className="w-4 h-4" /><span className="text-xs">30.2K</span></div>
+                    <div className="flex items-center space-x-2">
+                      <LikeButton
+                        liked={isLiked}
+                        burstVisible={showLikeBurst}
+                        onClick={handleLikeToggle}
+                        size="xs"
+                      />
+                      <span className="text-xs">30.2K</span>
+                    </div>
                   </div>
                 </div>
               </div>
