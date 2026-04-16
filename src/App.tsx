@@ -98,6 +98,7 @@ export default function App() {
   const [hasCustomSlug, setHasCustomSlug] = useState(false);
   const [markdownContent, setMarkdownContent] = useState<string>('');
   const [coverImage, setCoverImage] = useState<string | null>(null);
+  const [isDragActive, setIsDragActive] = useState(false);
   
   const [isSharing, setIsSharing] = useState(false);
   const [shareLink, setShareLink] = useState<string | null>(null);
@@ -112,6 +113,7 @@ export default function App() {
   const [isLiked, setIsLiked] = useState(false);
   const [showLikeBurst, setShowLikeBurst] = useState(false);
   const likeBurstTimeoutRef = useRef<number | null>(null);
+  const dragDepthRef = useRef(0);
 
   const urlParams = new URLSearchParams(window.location.search);
   const blobUrl = urlParams.get('blob');
@@ -257,6 +259,65 @@ export default function App() {
     });
   };
 
+  const isMarkdownFile = (file: File) =>
+    file.type === 'text/markdown' ||
+    file.type === 'text/x-markdown' ||
+    /\.(md|markdown)$/i.test(file.name);
+
+  const isImageFile = (file: File) => file.type.startsWith('image/');
+
+  const readFileAsText = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (event) => resolve((event.target?.result as string) || '');
+      reader.onerror = () => reject(new Error(`Failed to read ${file.name}.`));
+      reader.readAsText(file);
+    });
+
+  const readFileAsDataUrl = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (event) => resolve((event.target?.result as string) || '');
+      reader.onerror = () => reject(new Error(`Failed to read ${file.name}.`));
+      reader.readAsDataURL(file);
+    });
+
+  const applyMarkdownFile = async (file: File) => {
+    const newContent = await readFileAsText(file);
+    setMarkdownContent(newContent);
+    editorRef.current?.setMarkdown(newContent);
+    setIsEditing(true);
+  };
+
+  const applyImageFile = async (file: File) => {
+    const imageDataUrl = await readFileAsDataUrl(file);
+    setCoverImage(imageDataUrl);
+  };
+
+  const handleIncomingFiles = async (files: File[]) => {
+    if (!files.length) return;
+
+    const markdownFile = files.find(isMarkdownFile);
+    const imageFile = files.find(isImageFile);
+
+    if (!markdownFile && !imageFile) {
+      return;
+    }
+
+    try {
+      if (markdownFile) {
+        await applyMarkdownFile(markdownFile);
+      }
+
+      if (imageFile) {
+        await applyImageFile(imageFile);
+      }
+    } catch (err) {
+      console.error(err);
+      alert(err instanceof Error ? err.message : 'Failed to load dropped file.');
+    }
+  };
+
   const handleShare = async () => {
     if (!markdownContent) return;
     
@@ -310,25 +371,47 @@ export default function App() {
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const newContent = e.target?.result as string;
-        setMarkdownContent(newContent);
-        editorRef.current?.setMarkdown(newContent);
-      };
-      reader.readAsText(file);
+      void handleIncomingFiles([file]);
     }
+    event.target.value = '';
   };
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setCoverImage(e.target?.result as string);
-      };
-      reader.readAsDataURL(file);
+      void handleIncomingFiles([file]);
     }
+    event.target.value = '';
+  };
+
+  const handleDragEnter = (event: React.DragEvent<HTMLDivElement>) => {
+    if (isPublicView || !event.dataTransfer.types.includes('Files')) return;
+    event.preventDefault();
+    dragDepthRef.current += 1;
+    setIsDragActive(true);
+  };
+
+  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    if (isPublicView || !event.dataTransfer.types.includes('Files')) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'copy';
+  };
+
+  const handleDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
+    if (isPublicView || !event.dataTransfer.types.includes('Files')) return;
+    event.preventDefault();
+    dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+    if (dragDepthRef.current === 0) {
+      setIsDragActive(false);
+    }
+  };
+
+  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    if (isPublicView) return;
+    event.preventDefault();
+    dragDepthRef.current = 0;
+    setIsDragActive(false);
+    void handleIncomingFiles(Array.from(event.dataTransfer.files));
   };
 
   const handleDownloadMd = () => {
@@ -404,7 +487,21 @@ export default function App() {
     : markdownContent.trim();
 
   return (
-    <div className="min-h-screen bg-black text-[#e7e9ea] font-sans selection:bg-[#1d9bf0] selection:text-white pb-20">
+    <div
+      className="relative min-h-screen bg-black text-[#e7e9ea] font-sans selection:bg-[#1d9bf0] selection:text-white pb-20"
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {!isPublicView && isDragActive ? (
+        <div className="pointer-events-none fixed inset-0 z-[80] flex items-center justify-center bg-black/70 px-6">
+          <div className="rounded-2xl border border-[#1d9bf0] bg-[#0b0f14] px-6 py-5 text-center shadow-[0_0_0_1px_rgba(29,155,240,0.15)]">
+            <div className="text-lg font-bold text-[#e7e9ea]">Drop your files</div>
+            <div className="mt-1 text-sm text-[#8b98a5]">.md updates the article. Image updates the cover.</div>
+          </div>
+        </div>
+      ) : null}
       
           {/* Editor Top Bar (Only for Creator) */}
       {!isPublicView && (
