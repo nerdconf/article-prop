@@ -290,7 +290,7 @@ export async function publishProposal(input: PublishProposalInput, origin: strin
   });
 
   const html = renderProposalPage(snapshot, origin);
-  await put(proposalHtmlPath(slug), html, {
+  const htmlBlob = await put(proposalHtmlPath(slug), html, {
     access: 'public',
     addRandomSuffix: false,
     contentType: 'text/html; charset=utf-8',
@@ -305,6 +305,7 @@ export async function publishProposal(input: PublishProposalInput, origin: strin
     id,
     slug,
     blobUrl: blob.url,
+    htmlArtifactUrl: htmlBlob.url,
     shareUrl: shareUrl.toString(),
   };
 }

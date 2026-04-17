@@ -1,6 +1,5 @@
 import React, {Suspense, useEffect, useRef, useState} from 'react';
 import {
-  BadgeCheck,
   BarChart2,
   Bookmark,
   Download,
@@ -10,6 +9,7 @@ import {
 } from 'lucide-react';
 
 import { NerdConfLogo } from './NerdConfLogo';
+import VerifiedBadge from './VerifiedBadge';
 import {
   DEFAULT_PROPOSAL_TITLE,
   NERDCONF_PROFILE_IMAGE,
@@ -143,7 +143,7 @@ export default function PublicProposalView({
             <div className="min-w-0">
               <div className="flex items-center space-x-1">
                 <span className="font-bold text-[#e7e9ea] group-hover:underline text-lg">NERDCONF</span>
-                <BadgeCheck className="w-5 h-5 text-[#1d9bf0]" fill="currentColor" />
+                <VerifiedBadge className="h-[18px] w-[18px] translate-y-[1px]" />
               </div>
               <div className="text-[#71767b] text-sm">@nerdconf_ar</div>
             </div>
@@ -272,7 +272,7 @@ export default function PublicProposalView({
               <div className="flex-1">
                 <div className="flex items-center space-x-1">
                   <span className="font-bold text-[#e7e9ea] hover:underline cursor-pointer">NERDCONF</span>
-                  <BadgeCheck className="w-4 h-4 text-[#1d9bf0]" fill="currentColor" />
+                  <VerifiedBadge className="h-4 w-4 translate-y-[1px]" />
                   <span className="text-[#71767b] text-sm">@nerdconf_ar · 1m</span>
                 </div>
                 <p className="text-[#e7e9ea] mt-1">
@@ -306,7 +306,7 @@ export default function PublicProposalView({
               <div className="flex-1">
                 <div className="flex items-center space-x-1">
                   <span className="font-bold text-[#e7e9ea] hover:underline cursor-pointer">Elon Musk</span>
-                  <BadgeCheck className="w-4 h-4 text-[#ffd700]" fill="currentColor" />
+                  <VerifiedBadge className="h-4 w-4 translate-y-[1px]" color="#ffd700" />
                   <span className="text-[#71767b] text-sm">@elonmusk · Apr 1</span>
                 </div>
                 <p className="text-[#e7e9ea] mt-1">

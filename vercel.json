@@ -15,7 +15,7 @@
     },
     {
       "source": "/:slug",
-      "destination": "/api/proposal-page?slug=:slug"
+      "destination": "https://yurrulwh11ifng9a.public.blob.vercel-storage.com/proposals/pages/:slug.html"
     },
     {
       "source": "/(.*)",

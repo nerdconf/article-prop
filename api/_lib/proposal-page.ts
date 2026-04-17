@@ -39,8 +39,9 @@ export function renderProposalPage(proposal: ProposalSnapshot, origin: string) {
   const escapedTitle = escapeHtml(proposal.articleTitle);
   const escapedDescription = escapeHtml(description);
   const escapedCanonicalUrl = escapeHtml(canonicalUrl);
+  const assetBaseUrl = origin.replace(/\/+$/g, '');
   const {time, date} = formatCreatedAt(proposal.createdAt);
-  const markdownDownloadUrl = `/api/proposal-md?slug=${encodeURIComponent(proposal.slug ?? '')}`;
+  const markdownDownloadUrl = `${assetBaseUrl}/api/proposal-md?slug=${encodeURIComponent(proposal.slug ?? '')}`;
   const coverSection = proposal.coverImage
     ? `<div class="cover"><img src="${proposal.coverImage}" alt="${escapedTitle}" /></div>`
     : '<div class="cover cover--empty"><span>No cover image uploaded</span></div>';
@@ -61,7 +62,7 @@ export function renderProposalPage(proposal: ProposalSnapshot, origin: string) {
     <meta name="twitter:title" content="${escapedTitle}" />
     <meta name="twitter:description" content="${escapedDescription}" />
     ${proposal.coverImage ? `<meta name="twitter:image" content="${proposal.coverImage}" />` : ''}
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="${assetBaseUrl}/favicon.svg" />
     <style>
       :root {
         color-scheme: dark;
@@ -115,10 +116,11 @@ export function renderProposalPage(proposal: ProposalSnapshot, origin: string) {
       }
       .handle { color: var(--muted); font-size: 14px; }
       .verified {
-        width: 20px;
-        height: 20px;
+        width: 18px;
+        height: 18px;
         color: var(--blue);
         flex: 0 0 auto;
+        margin-top: 1px;
       }
       .cover {
         margin-top: 16px;
