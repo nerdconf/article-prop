@@ -1,4 +1,8 @@
 import { BlobNotFoundError, head, put } from '@vercel/blob';
+import {createElement} from 'react';
+import {renderToStaticMarkup} from 'react-dom/server';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 export interface PublishProposalInput {
   title: string;
@@ -11,7 +15,9 @@ export interface ProposalSnapshot {
   id: string;
   slug: string | null;
   title: string;
+  articleTitle: string;
   markdownContent: string;
+  htmlContent: string;
   coverImage: string | null;
   createdAt: string;
 }
@@ -94,6 +100,28 @@ function assertValidProposalSlug(slug: string | null | undefined) {
   return normalizedSlug;
 }
 
+function getDisplayContent(markdownContent: string, proposalTitle: string) {
+  const markdownHeadingMatch = markdownContent.match(/^#\s+(.+)$/m);
+  const articleTitle = markdownHeadingMatch?.[1].trim() || proposalTitle.trim();
+  const contentWithoutTitle = markdownHeadingMatch
+    ? markdownContent.replace(/^#\s+(.+)$/m, '').trim()
+    : markdownContent.trim();
+
+  return {
+    articleTitle,
+    contentWithoutTitle,
+  };
+}
+
+function renderProposalHtml(markdownContent: string) {
+  return renderToStaticMarkup(
+    createElement(ReactMarkdown, {
+      remarkPlugins: [remarkGfm],
+      children: markdownContent,
+    })
+  );
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
@@ -155,6 +183,8 @@ function parseStoredSnapshot(data: unknown): ProposalSnapshot {
   const rawSlug = data.slug;
   const title = data.title;
   const markdownContent = data.markdownContent;
+  const articleTitle = data.articleTitle;
+  const htmlContent = data.htmlContent;
   const coverImage = data.coverImage;
   const createdAt = data.createdAt;
 
@@ -169,12 +199,16 @@ function parseStoredSnapshot(data: unknown): ProposalSnapshot {
   }
 
   const slug = typeof rawSlug === 'string' ? assertValidProposalSlug(rawSlug) : null;
+  const displayContent = getDisplayContent(markdownContent, title);
 
   return {
     id,
     slug,
     title,
+    articleTitle: typeof articleTitle === 'string' ? articleTitle : displayContent.articleTitle,
     markdownContent,
+    htmlContent:
+      typeof htmlContent === 'string' ? htmlContent : renderProposalHtml(displayContent.contentWithoutTitle),
     coverImage: coverImage === null ? null : (coverImage as string),
     createdAt,
   };
@@ -185,11 +219,14 @@ export async function publishProposal(input: PublishProposalInput, origin: strin
 
   const id = crypto.randomUUID();
   const slug = assertValidProposalSlug(input.slug);
+  const displayContent = getDisplayContent(input.markdownContent, input.title);
   const snapshot: ProposalSnapshot = {
     id,
     slug,
     title: input.title,
+    articleTitle: displayContent.articleTitle,
     markdownContent: input.markdownContent,
+    htmlContent: renderProposalHtml(displayContent.contentWithoutTitle),
     coverImage: input.coverImage,
     createdAt: new Date().toISOString(),
   };
