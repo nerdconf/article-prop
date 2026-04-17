@@ -3,7 +3,7 @@ import type {ProposalSnapshot} from './proposals.js';
 
 type IconName = 'message' | 'repeat' | 'heart' | 'chart' | 'bookmark' | 'download';
 type ToneName = 'blue' | 'green' | 'pink' | 'muted';
-export const PROPOSAL_PAGE_TEMPLATE_VERSION = '2026-04-17-preview-parity-v1';
+export const PROPOSAL_PAGE_TEMPLATE_VERSION = '2026-04-17-preview-parity-v2';
 
 function escapeHtml(value: string) {
   return value
@@ -226,7 +226,7 @@ export function renderProposalPage(proposal: ProposalSnapshot, origin: string) {
   ].join('');
 
   const utilityActions = [
-    actionButton({icon: 'bookmark', label: 'Saved', tone: 'blue', className: 'bookmark-button is-active', dataAttrs: 'data-bookmark-toggle="shared"'}),
+    actionButton({icon: 'bookmark', tone: 'blue', className: 'bookmark-button is-active', dataAttrs: 'data-bookmark-toggle="shared"'}),
     actionLink({icon: 'download', label: '.md', href: markdownDownloadUrl, className: 'download-link', tone: 'blue', extraAttrs: 'download'}),
   ].join('');
 
@@ -234,7 +234,7 @@ export function renderProposalPage(proposal: ProposalSnapshot, origin: string) {
     actionButton({icon: 'message', label: 'Discuss', tone: 'blue'}),
     actionButton({icon: 'repeat', label: 'Revise', tone: 'green'}),
     actionButton({icon: 'heart', label: 'Approve', tone: 'pink', className: 'like-button', dataAttrs: 'data-like-toggle="shared"'}),
-    actionButton({icon: 'bookmark', label: 'Saved', tone: 'blue', className: 'bookmark-button is-active', dataAttrs: 'data-bookmark-toggle="shared"'}),
+    actionButton({icon: 'bookmark', tone: 'blue', className: 'bookmark-button is-active', dataAttrs: 'data-bookmark-toggle="shared"'}),
   ].join('');
 
   const threadHtml = [
@@ -388,8 +388,8 @@ export function renderProposalPage(proposal: ProposalSnapshot, origin: string) {
       .metrics-right {
         display: flex;
         align-items: center;
-        gap: 12px;
-        flex-wrap: wrap;
+        gap: 10px;
+        flex-wrap: nowrap;
       }
       .action-button,
       .download-link {
@@ -412,8 +412,8 @@ export function renderProposalPage(proposal: ProposalSnapshot, origin: string) {
         transition: background-color 160ms ease, transform 180ms ease, color 160ms ease;
       }
       .action-hitbox {
-        width: 36px;
-        height: 36px;
+        width: 32px;
+        height: 32px;
       }
       .thread-action-hitbox {
         width: 28px;
@@ -421,7 +421,7 @@ export function renderProposalPage(proposal: ProposalSnapshot, origin: string) {
       }
       .action-label,
       .thread-action-label {
-        font-size: 14px;
+        font-size: 13px;
       }
       .action-button[data-tone="blue"]:hover { color: var(--blue); }
       .action-button[data-tone="blue"]:hover .action-hitbox { background: rgba(29, 155, 240, 0.1); }
@@ -465,7 +465,8 @@ export function renderProposalPage(proposal: ProposalSnapshot, origin: string) {
       }
       .divider {
         border-top: 1px solid var(--border);
-        padding-top: 24px;
+        margin: 0 -16px;
+        padding: 24px 16px 0;
       }
       .content {
         font-size: 19px;
@@ -534,20 +535,21 @@ export function renderProposalPage(proposal: ProposalSnapshot, origin: string) {
         justify-content: space-between;
         align-items: center;
         gap: 16px;
-        padding: 12px 0;
+        padding: 12px 16px;
         border-top: 1px solid var(--border);
         border-bottom: 1px solid var(--border);
-        margin: 16px 0;
+        margin: 16px -16px 0;
         color: var(--muted);
       }
       .reply-band .action-button { font-size: 14px; }
       .thread {
-        padding-top: 16px;
+        margin: 0 -16px;
+        padding: 16px 16px 0;
       }
       .thread-item {
         display: flex;
         gap: 12px;
-        padding: 16px 0;
+        padding: 16px;
       }
       .thread-item + .thread-item { border-top: 1px solid var(--border); }
       .thread-avatar {
@@ -637,6 +639,10 @@ export function renderProposalPage(proposal: ProposalSnapshot, origin: string) {
         .reply-band {
           flex-direction: column;
           align-items: flex-start;
+        }
+        .metrics-left,
+        .metrics-right {
+          flex-wrap: wrap;
         }
       }
       @media (prefers-reduced-motion: reduce) {
