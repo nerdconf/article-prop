@@ -13,17 +13,35 @@ Prerequisites:
 Setup:
 1. Install dependencies with `npm install`
 2. Copy `.env.example` to `.env.local`
-3. Set `BLOB_READ_WRITE_TOKEN` in `.env.local`
+3. Set `BLOB_READ_WRITE_TOKEN` and `PUBLISH_API_TOKEN` in `.env.local`
 4. Run `npm run dev`
 
-`vite dev` also serves the local `/api/publish` and `/api/proposal` endpoints, so the full publish flow works locally.
+`vite dev` also serves the local `/api/publish`, `/api/publish-bot`, and `/api/proposal` endpoints, so the full publish flow works locally.
 
 ## Deploy on Vercel
 
 1. Import the repo into Vercel as a Vite project
-2. Add `BLOB_READ_WRITE_TOKEN` to the project environment variables
+2. Add `BLOB_READ_WRITE_TOKEN` and `PUBLISH_API_TOKEN` to the project environment variables
 3. Deploy
 
 The production app uses:
 - `POST /api/publish` to create immutable proposal snapshots
 - direct Blob-backed share links so the public viewer can load proposal JSON without a second server lookup
+- `POST /api/publish-bot` as a private bearer-token endpoint for bots / CLI publishing
+
+## Bot / CLI publishing
+
+Private endpoint:
+- `POST /api/publish-bot`
+- header: `Authorization: Bearer <PUBLISH_API_TOKEN>`
+- body: `{ title, slug, markdownContent, coverImage }`
+
+Local CLI:
+```bash
+npm run publish:md -- ./proposal.md --title "Base Proposal" --slug based
+```
+
+Optional arguments:
+- `--cover ./cover.png`
+- `--cover https://...`
+- `--origin https://proposal.nerdconf.com`

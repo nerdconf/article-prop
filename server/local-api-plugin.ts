@@ -1,6 +1,7 @@
 import type {IncomingMessage, ServerResponse} from 'node:http';
 import type {Plugin} from 'vite';
 
+import {authorizePublishBotRequest} from '../api/_lib/publish-bot.js';
 import {
   fetchProposal,
   fetchProposalPageHtml,
@@ -90,6 +91,15 @@ export function localProposalApiPlugin(): Plugin {
 
         try {
           if (request.method === 'POST' && url.pathname === '/api/publish') {
+            const body = await readJsonBody(request);
+            const input = parsePublishProposalInput(body);
+            const result = await publishProposal(input, getRequestOrigin(request));
+            sendJson(response, 200, result);
+            return;
+          }
+
+          if (request.method === 'POST' && url.pathname === '/api/publish-bot') {
+            authorizePublishBotRequest(request.headers);
             const body = await readJsonBody(request);
             const input = parsePublishProposalInput(body);
             const result = await publishProposal(input, getRequestOrigin(request));
