@@ -3,12 +3,12 @@ import type {Plugin} from 'vite';
 
 import {
   fetchProposal,
+  fetchProposalPageHtml,
   getErrorResponse,
   ProposalApiError,
   parsePublishProposalInput,
   publishProposal,
 } from '../api/_lib/proposals.js';
-import {renderProposalPage} from '../api/_lib/proposal-page.js';
 
 function getRequestOrigin(request: IncomingMessage) {
   const protoHeader = request.headers['x-forwarded-proto'];
@@ -107,11 +107,12 @@ export function localProposalApiPlugin(): Plugin {
           }
 
           if (request.method === 'GET' && url.pathname === '/api/proposal-page') {
-            const result = await fetchProposal({
+            const result = await fetchProposalPageHtml({
               id: url.searchParams.get('id'),
               slug: url.searchParams.get('slug'),
+              origin: getRequestOrigin(request),
             });
-            sendHtml(response, 200, renderProposalPage(result, getRequestOrigin(request)));
+            sendHtml(response, 200, result);
             return;
           }
 
@@ -125,10 +126,11 @@ export function localProposalApiPlugin(): Plugin {
           }
 
           if (request.method === 'GET' && isPublicSlugPath(url.pathname)) {
-            const result = await fetchProposal({
+            const result = await fetchProposalPageHtml({
               slug: url.pathname.replace(/^\/+/, ''),
+              origin: getRequestOrigin(request),
             });
-            sendHtml(response, 200, renderProposalPage(result, getRequestOrigin(request)));
+            sendHtml(response, 200, result);
             return;
           }
         } catch (error) {

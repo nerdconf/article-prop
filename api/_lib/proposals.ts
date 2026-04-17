@@ -3,6 +3,7 @@ import {createElement} from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import {renderProposalPage} from './proposal-page.js';
 
 export interface PublishProposalInput {
   title: string;
@@ -30,6 +31,7 @@ const PROPOSAL_CACHE_TTL_MS = 60_000;
 const PROPOSAL_ID_PATTERN = /^[a-f0-9-]{36}$/i;
 const PROPOSAL_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const proposalCache = new Map<string, {proposal: ProposalSnapshot; expiresAt: number}>();
+const proposalHtmlCache = new Map<string, {html: string; expiresAt: number}>();
 
 export class ProposalApiError extends Error {
   status: number;
@@ -58,6 +60,10 @@ function proposalPath(id: string) {
 
 function proposalSlugPath(slug: string) {
   return `proposals/slugs/${slug}.json`;
+}
+
+function proposalHtmlPath(slug: string) {
+  return `proposals/pages/${slug}.html`;
 }
 
 function assertValidProposalId(id: string | null | undefined) {
@@ -238,6 +244,28 @@ function setCachedProposal(path: string, proposal: ProposalSnapshot) {
   });
 }
 
+function getCachedProposalHtml(path: string) {
+  const cached = proposalHtmlCache.get(path);
+
+  if (!cached) {
+    return null;
+  }
+
+  if (cached.expiresAt <= Date.now()) {
+    proposalHtmlCache.delete(path);
+    return null;
+  }
+
+  return cached.html;
+}
+
+function setCachedProposalHtml(path: string, html: string) {
+  proposalHtmlCache.set(path, {
+    html,
+    expiresAt: Date.now() + PROPOSAL_CACHE_TTL_MS,
+  });
+}
+
 export async function publishProposal(input: PublishProposalInput, origin: string) {
   requireBlobToken();
 
@@ -261,7 +289,15 @@ export async function publishProposal(input: PublishProposalInput, origin: strin
     contentType: 'application/json; charset=utf-8',
   });
 
+  const html = renderProposalPage(snapshot, origin);
+  await put(proposalHtmlPath(slug), html, {
+    access: 'public',
+    addRandomSuffix: false,
+    contentType: 'text/html; charset=utf-8',
+  });
+
   setCachedProposal(proposalSlugPath(slug), snapshot);
+  setCachedProposalHtml(proposalHtmlPath(slug), html);
 
   const shareUrl = new URL(`/${slug}`, origin);
 
@@ -292,6 +328,24 @@ async function fetchProposalByBlobPath(path: string) {
   return proposal;
 }
 
+async function fetchProposalHtmlByBlobPath(path: string) {
+  const cachedHtml = getCachedProposalHtml(path);
+  if (cachedHtml) {
+    return cachedHtml;
+  }
+
+  const blob = await head(path);
+  const response = await fetch(blob.url);
+
+  if (!response.ok) {
+    throw new ProposalApiError(404, 'Proposal not found.');
+  }
+
+  const html = await response.text();
+  setCachedProposalHtml(path, html);
+  return html;
+}
+
 async function fetchProposalById(id: string | null | undefined) {
   const validId = assertValidProposalId(id);
   return fetchProposalByBlobPath(proposalPath(validId));
@@ -300,6 +354,42 @@ async function fetchProposalById(id: string | null | undefined) {
 async function fetchProposalBySlug(slug: string | null | undefined) {
   const validSlug = assertValidProposalSlug(slug);
   return fetchProposalByBlobPath(proposalSlugPath(validSlug));
+}
+
+export async function fetchProposalPageHtml(input: {
+  slug?: string | null | undefined;
+  id?: string | null | undefined;
+  origin: string;
+}) {
+  requireBlobToken();
+
+  try {
+    if (input.slug) {
+      const validSlug = assertValidProposalSlug(input.slug);
+
+      try {
+        return await fetchProposalHtmlByBlobPath(proposalHtmlPath(validSlug));
+      } catch (error) {
+        if (!(error instanceof BlobNotFoundError) && !(error instanceof ProposalApiError)) {
+          throw error;
+        }
+
+        const proposal = await fetchProposalBySlug(validSlug);
+        const html = renderProposalPage(proposal, input.origin);
+        setCachedProposalHtml(proposalHtmlPath(validSlug), html);
+        return html;
+      }
+    }
+
+    const proposal = await fetchProposalById(input.id);
+    return renderProposalPage(proposal, input.origin);
+  } catch (error) {
+    if (error instanceof BlobNotFoundError) {
+      throw new ProposalApiError(404, 'Proposal not found.');
+    }
+
+    throw error;
+  }
 }
 
 export async function fetchProposal(input: {
