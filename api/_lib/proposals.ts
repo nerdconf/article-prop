@@ -26,8 +26,10 @@ const MAX_TITLE_LENGTH = 200;
 const MAX_SLUG_LENGTH = 80;
 const MAX_MARKDOWN_LENGTH = 500_000;
 const MAX_COVER_IMAGE_LENGTH = 2_000_000;
+const PROPOSAL_CACHE_TTL_MS = 60_000;
 const PROPOSAL_ID_PATTERN = /^[a-f0-9-]{36}$/i;
 const PROPOSAL_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const proposalCache = new Map<string, {proposal: ProposalSnapshot; expiresAt: number}>();
 
 export class ProposalApiError extends Error {
   status: number;
@@ -214,6 +216,28 @@ function parseStoredSnapshot(data: unknown): ProposalSnapshot {
   };
 }
 
+function getCachedProposal(path: string) {
+  const cached = proposalCache.get(path);
+
+  if (!cached) {
+    return null;
+  }
+
+  if (cached.expiresAt <= Date.now()) {
+    proposalCache.delete(path);
+    return null;
+  }
+
+  return cached.proposal;
+}
+
+function setCachedProposal(path: string, proposal: ProposalSnapshot) {
+  proposalCache.set(path, {
+    proposal,
+    expiresAt: Date.now() + PROPOSAL_CACHE_TTL_MS,
+  });
+}
+
 export async function publishProposal(input: PublishProposalInput, origin: string) {
   requireBlobToken();
 
@@ -237,6 +261,8 @@ export async function publishProposal(input: PublishProposalInput, origin: strin
     contentType: 'application/json; charset=utf-8',
   });
 
+  setCachedProposal(proposalSlugPath(slug), snapshot);
+
   const shareUrl = new URL(`/${slug}`, origin);
 
   return {
@@ -248,6 +274,11 @@ export async function publishProposal(input: PublishProposalInput, origin: strin
 }
 
 async function fetchProposalByBlobPath(path: string) {
+  const cachedProposal = getCachedProposal(path);
+  if (cachedProposal) {
+    return cachedProposal;
+  }
+
   const blob = await head(path);
   const response = await fetch(blob.url);
 
@@ -256,7 +287,9 @@ async function fetchProposalByBlobPath(path: string) {
   }
 
   const payload = await response.json();
-  return parseStoredSnapshot(payload);
+  const proposal = parseStoredSnapshot(payload);
+  setCachedProposal(path, proposal);
+  return proposal;
 }
 
 async function fetchProposalById(id: string | null | undefined) {

@@ -60,7 +60,20 @@ function makeFilename(title: string) {
 }
 
 function isPublicSlugPath(pathname: string) {
-  return pathname !== '/' && !pathname.startsWith('/api/') && !pathname.includes('.');
+  if (pathname === '/') {
+    return false;
+  }
+
+  if (pathname.startsWith('/api/') || pathname.startsWith('/@')) {
+    return false;
+  }
+
+  const normalizedPath = pathname.replace(/^\/+|\/+$/g, '');
+  if (!normalizedPath || normalizedPath.includes('/')) {
+    return false;
+  }
+
+  return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(normalizedPath);
 }
 
 export function localProposalApiPlugin(): Plugin {
