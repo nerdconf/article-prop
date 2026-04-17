@@ -3,7 +3,7 @@ import {createElement} from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import {renderProposalPage} from './proposal-page.js';
+import {PROPOSAL_PAGE_TEMPLATE_VERSION, renderProposalPage} from './proposal-page.js';
 
 export interface PublishProposalInput {
   title: string;
@@ -347,6 +347,10 @@ async function fetchProposalHtmlByBlobPath(path: string) {
   return html;
 }
 
+function isCurrentProposalHtmlArtifact(html: string) {
+  return html.includes(`content="${PROPOSAL_PAGE_TEMPLATE_VERSION}"`);
+}
+
 async function fetchProposalById(id: string | null | undefined) {
   const validId = assertValidProposalId(id);
   return fetchProposalByBlobPath(proposalPath(validId));
@@ -369,7 +373,21 @@ export async function fetchProposalPageHtml(input: {
       const validSlug = assertValidProposalSlug(input.slug);
 
       try {
-        return await fetchProposalHtmlByBlobPath(proposalHtmlPath(validSlug));
+        const html = await fetchProposalHtmlByBlobPath(proposalHtmlPath(validSlug));
+
+        if (isCurrentProposalHtmlArtifact(html)) {
+          return html;
+        }
+
+        const proposal = await fetchProposalBySlug(validSlug);
+        const refreshedHtml = renderProposalPage(proposal, input.origin);
+        await put(proposalHtmlPath(validSlug), refreshedHtml, {
+          access: 'public',
+          addRandomSuffix: false,
+          contentType: 'text/html; charset=utf-8',
+        });
+        setCachedProposalHtml(proposalHtmlPath(validSlug), refreshedHtml);
+        return refreshedHtml;
       } catch (error) {
         if (!(error instanceof BlobNotFoundError) && !(error instanceof ProposalApiError)) {
           throw error;
@@ -377,6 +395,11 @@ export async function fetchProposalPageHtml(input: {
 
         const proposal = await fetchProposalBySlug(validSlug);
         const html = renderProposalPage(proposal, input.origin);
+        await put(proposalHtmlPath(validSlug), html, {
+          access: 'public',
+          addRandomSuffix: false,
+          contentType: 'text/html; charset=utf-8',
+        });
         setCachedProposalHtml(proposalHtmlPath(validSlug), html);
         return html;
       }
