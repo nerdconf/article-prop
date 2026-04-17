@@ -33,6 +33,29 @@ function buildPageDescription(proposal: ProposalSnapshot) {
   return plainText.slice(0, 180) || proposal.articleTitle;
 }
 
+function iconSvg(name: 'message' | 'repeat' | 'heart' | 'chart' | 'bookmark' | 'download') {
+  const common = 'class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
+
+  switch (name) {
+    case 'message':
+      return `<svg ${common}><path d="M21 15a4 4 0 0 1-4 4H7l-4 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>`;
+    case 'repeat':
+      return `<svg ${common}><path d="m17 2 4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>`;
+    case 'heart':
+      return `<svg ${common}><path d="m12 20.4-1.45-1.32C5.4 14.36 2 11.28 2 7.5 2 4.42 4.42 2 7.5 2c1.74 0 3.41.81 4.5 2.09C13.09 2.81 14.76 2 16.5 2 19.58 2 22 4.42 22 7.5c0 3.78-3.4 6.86-8.55 11.58z"/></svg>`;
+    case 'chart':
+      return `<svg ${common}><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>`;
+    case 'bookmark':
+      return `<svg ${common}><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>`;
+    case 'download':
+      return `<svg ${common}><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>`;
+  }
+}
+
+function metricWithIcon(icon: Parameters<typeof iconSvg>[0], label: string, extraClass = '') {
+  return `<span class="metric ${extraClass}">${iconSvg(icon)}<span>${escapeHtml(label)}</span></span>`;
+}
+
 export function renderProposalPage(proposal: ProposalSnapshot, origin: string) {
   const canonicalUrl = `${origin.replace(/\/+$/g, '')}/${proposal.slug ?? proposal.id}`;
   const description = buildPageDescription(proposal);
@@ -284,7 +307,7 @@ export function renderProposalPage(proposal: ProposalSnapshot, origin: string) {
           <div class="identity-meta">
             <div class="name-row">
               <span class="name">NERDCONF</span>
-              <svg class="verified" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M22.25 12c0-.81-.67-1.47-1.49-1.47h-.63a1.49 1.49 0 0 1-1.41-.98l-.23-.62a1.48 1.48 0 0 1 .3-1.53l.45-.45c.58-.58.58-1.52 0-2.08l-1.7-1.7a1.47 1.47 0 0 0-2.09 0l-.44.44a1.5 1.5 0 0 1-1.54.3l-.62-.22a1.5 1.5 0 0 1-.97-1.42v-.63A1.49 1.49 0 0 0 10.4.25H7.98A1.48 1.48 0 0 0 6.5 1.72v.63c0 .63-.4 1.2-.98 1.42l-.62.22a1.5 1.5 0 0 1-1.54-.3l-.44-.44a1.47 1.47 0 0 0-2.09 0l-1.7 1.7a1.47 1.47 0 0 0 0 2.08l.45.45c.43.43.55 1.07.3 1.53l-.23.62a1.49 1.49 0 0 1-1.41.98h-.63A1.49 1.49 0 0 0 .25 12.0v2.42c0 .81.67 1.47 1.49 1.47h.63c.63 0 1.2.4 1.41.98l.23.62c.2.52.08 1.1-.3 1.53l-.45.45a1.47 1.47 0 0 0 0 2.08l1.7 1.7c.58.58 1.52.58 2.09 0l.44-.44a1.5 1.5 0 0 1 1.54-.3l.62.22c.58.21.98.78.98 1.42v.63c0 .81.66 1.47 1.48 1.47h2.42c.82 0 1.49-.66 1.49-1.47v-.63c0-.64.39-1.21.97-1.42l.62-.22c.52-.2 1.1-.08 1.54.3l.44.44c.57.58 1.51.58 2.09 0l1.7-1.7c.58-.58.58-1.52 0-2.08l-.45-.45a1.48 1.48 0 0 1-.3-1.53l.23-.62a1.49 1.49 0 0 1 1.41-.98h.63c.82 0 1.49-.66 1.49-1.47V12Z"/><path fill="#fff" d="m10.76 16.24-3.3-3.3 1.06-1.06 2.24 2.24 4.72-4.72 1.06 1.06-5.78 5.78Z"/></svg>
+              <svg class="verified" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="#1d9bf0"/><path d="m6.4 10.1 2.2 2.2 5-5" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </div>
             <div class="handle">@nerdconf_ar</div>
           </div>
@@ -295,14 +318,14 @@ export function renderProposalPage(proposal: ProposalSnapshot, origin: string) {
         <h1>${escapedTitle}</h1>
         <div class="metrics">
           <div class="metrics-left">
-            <span class="metric">Discuss</span>
-            <span class="metric">v1.0</span>
-            <span class="metric">Approve</span>
-            <span class="metric">Confidential</span>
+            ${metricWithIcon('message', 'Discuss')}
+            ${metricWithIcon('repeat', 'v1.0')}
+            ${metricWithIcon('heart', 'Approve')}
+            ${metricWithIcon('chart', 'Confidential')}
           </div>
           <div class="metrics-right">
-            <span class="metric">Saved</span>
-            <a class="download-link" href="${markdownDownloadUrl}">.md</a>
+            ${metricWithIcon('bookmark', 'Saved')}
+            <a class="download-link" href="${markdownDownloadUrl}">${iconSvg('download')}<span>.md</span></a>
           </div>
         </div>
         <div class="divider">
@@ -315,10 +338,10 @@ export function renderProposalPage(proposal: ProposalSnapshot, origin: string) {
           <span>Exclusive View</span>
         </div>
         <div class="reply-band">
-          <span>Discuss</span>
-          <span>Revise</span>
-          <span>Approve</span>
-          <span>Saved</span>
+          ${metricWithIcon('message', 'Discuss')}
+          ${metricWithIcon('repeat', 'Revise')}
+          ${metricWithIcon('heart', 'Approve')}
+          ${metricWithIcon('bookmark', 'Saved')}
         </div>
         <div class="thread">
           <div class="thread-item">
