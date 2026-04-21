@@ -4,8 +4,10 @@ import {
   Bookmark,
   Download,
   Heart,
+  Maximize2,
   MessageCircle,
   Repeat2,
+  X,
 } from 'lucide-react';
 
 import { NerdConfLogo } from './NerdConfLogo';
@@ -72,7 +74,10 @@ export default function PublicProposalView({
 }) {
   const [isLiked, setIsLiked] = useState(false);
   const [showLikeBurst, setShowLikeBurst] = useState(false);
+  const [expandedTableHtml, setExpandedTableHtml] = useState<string | null>(null);
   const likeBurstTimeoutRef = useRef<number | null>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
+  const expandedTableRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     return () => {
@@ -81,6 +86,168 @@ export default function PublicProposalView({
       }
     };
   }, []);
+
+  useEffect(() => {
+    const root = contentRef.current;
+    if (!root) return;
+
+    const applyAdaptiveColumnWidths = (table: HTMLTableElement, expanded = false) => {
+      const rows = Array.from(table.rows);
+      if (!rows.length) return;
+
+      const columnCount = Math.max(...rows.map((row) => row.cells.length));
+      if (!columnCount) return;
+
+      const lengths = Array.from({length: columnCount}, () => 0);
+      rows.forEach((row) => {
+        Array.from(row.cells).forEach((cell, index) => {
+          const textLength = cell.textContent?.replace(/\s+/g, ' ').trim().length ?? 0;
+          lengths[index] = Math.max(lengths[index], textLength);
+        });
+      });
+
+      const widths = lengths.map((length, index) => {
+        if (index === 0) {
+          return Math.max(170, Math.min(expanded ? 220 : 210, 80 + length * 5));
+        }
+        return Math.max(expanded ? 170 : 150, Math.min(expanded ? 360 : 320, 72 + length * 3.8));
+      });
+
+      const existingColgroup = table.querySelector('colgroup');
+      if (existingColgroup) {
+        existingColgroup.remove();
+      }
+
+      const colgroup = document.createElement('colgroup');
+      widths.forEach((width) => {
+        const col = document.createElement('col');
+        col.style.width = `${width}px`;
+        colgroup.appendChild(col);
+      });
+      table.insertBefore(colgroup, table.firstChild);
+
+      const totalWidth = widths.reduce((sum, width) => sum + width, 0);
+      table.style.tableLayout = 'fixed';
+      table.style.width = `${totalWidth}px`;
+      table.style.minWidth = `${totalWidth}px`;
+    };
+
+    const enhanceTables = () => {
+      const tables = Array.from(root.querySelectorAll('table'));
+
+      tables.forEach((table) => {
+        const htmlTable = table as HTMLTableElement & {dataset: DOMStringMap};
+        if (htmlTable.dataset.expandableTable === 'true') {
+          return;
+        }
+
+        htmlTable.dataset.expandableTable = 'true';
+        applyAdaptiveColumnWidths(htmlTable);
+
+        const block = document.createElement('div');
+        block.className = 'proposal-table-block my-6';
+
+        const toolbar = document.createElement('div');
+        toolbar.className = 'mb-2 hidden items-center justify-end lg:flex';
+
+        const expandButton = document.createElement('button');
+        expandButton.type = 'button';
+        expandButton.className =
+          'inline-flex items-center gap-2 rounded-full border border-gray-700 bg-[#0b0f14] px-3 py-1.5 text-xs font-semibold text-[#8ecdfc] transition-colors hover:border-[#1d9bf0] hover:text-[#c7e8ff]';
+        expandButton.innerHTML =
+          '<svg viewBox="0 0 24 24" aria-hidden="true" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="m21 3-7 7"/><path d="m3 21 7-7"/></svg><span>Expand table</span>';
+        expandButton.addEventListener('click', () => {
+          setExpandedTableHtml(htmlTable.outerHTML);
+        });
+
+        const scroll = document.createElement('div');
+        scroll.className =
+          'overflow-x-auto rounded-2xl border border-gray-800 bg-black shadow-[inset_0_0_0_1px_rgba(255,255,255,0.02)]';
+
+        const parent = htmlTable.parentElement;
+        if (!parent) return;
+
+        parent.insertBefore(block, htmlTable);
+        toolbar.appendChild(expandButton);
+        block.appendChild(toolbar);
+        block.appendChild(scroll);
+        scroll.appendChild(htmlTable);
+      });
+    };
+
+    enhanceTables();
+
+    const observer = new MutationObserver(() => {
+      enhanceTables();
+    });
+
+    observer.observe(root, {childList: true, subtree: true});
+    return () => observer.disconnect();
+  }, [htmlContent, legacyMarkdownContent]);
+
+  useEffect(() => {
+    if (!expandedTableHtml) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setExpandedTableHtml(null);
+      }
+    };
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', onKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [expandedTableHtml]);
+
+  useEffect(() => {
+    const root = expandedTableRef.current;
+    if (!root) return;
+
+    const table = root.querySelector('table');
+    if (!(table instanceof HTMLTableElement)) return;
+
+    const rows = Array.from(table.rows);
+    if (!rows.length) return;
+
+    const columnCount = Math.max(...rows.map((row) => row.cells.length));
+    const lengths = Array.from({length: columnCount}, () => 0);
+    rows.forEach((row) => {
+      Array.from(row.cells).forEach((cell, index) => {
+        const textLength = cell.textContent?.replace(/\s+/g, ' ').trim().length ?? 0;
+        lengths[index] = Math.max(lengths[index], textLength);
+      });
+    });
+
+    const widths = lengths.map((length, index) => {
+      if (index === 0) {
+        return Math.max(180, Math.min(230, 86 + length * 5.2));
+      }
+      return Math.max(180, Math.min(380, 84 + length * 4.1));
+    });
+
+    const existingColgroup = table.querySelector('colgroup');
+    if (existingColgroup) {
+      existingColgroup.remove();
+    }
+
+    const colgroup = document.createElement('colgroup');
+    widths.forEach((width) => {
+      const col = document.createElement('col');
+      col.style.width = `${width}px`;
+      colgroup.appendChild(col);
+    });
+    table.insertBefore(colgroup, table.firstChild);
+
+    const totalWidth = widths.reduce((sum, width) => sum + width, 0);
+    table.style.tableLayout = 'fixed';
+    table.style.width = `${totalWidth}px`;
+    table.style.minWidth = `${totalWidth}px`;
+  }, [expandedTableHtml]);
 
   const handleLikeToggle = () => {
     const nextLikedState = !isLiked;
@@ -219,13 +386,18 @@ export default function PublicProposalView({
                 prose-blockquote:border-l-4 prose-blockquote:border-gray-700 prose-blockquote:pl-4 prose-blockquote:italic prose-blockquote:text-gray-400
                 prose-code:text-[#e7e9ea] prose-code:bg-gray-900 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:before:content-none prose-code:after:content-none
                 prose-pre:bg-gray-900 prose-pre:border prose-pre:border-gray-800
-                prose-img:rounded-2xl prose-img:border prose-img:border-gray-800"
+                prose-img:rounded-2xl prose-img:border prose-img:border-gray-800
+                [&_.proposal-table-block_table]:my-0
+                [&_th]:whitespace-normal [&_td]:whitespace-normal [&_th]:break-words [&_td]:break-words [&_th]:align-top [&_td]:align-top
+                [&_.proposal-table-block_.overflow-x-auto]:overflow-x-auto"
             >
               {htmlContent ? (
-                <div dangerouslySetInnerHTML={{__html: htmlContent}} />
+                <div ref={contentRef} dangerouslySetInnerHTML={{__html: htmlContent}} />
               ) : legacyMarkdownContent ? (
                 <Suspense fallback={null}>
-                  <LegacyMarkdownContent markdownContent={legacyMarkdownContent} />
+                  <div ref={contentRef}>
+                    <LegacyMarkdownContent markdownContent={legacyMarkdownContent} />
+                  </div>
                 </Suspense>
               ) : null}
             </div>
@@ -340,6 +512,43 @@ export default function PublicProposalView({
           </div>
         </div>
       </main>
+
+      {expandedTableHtml ? (
+        <div
+          className="fixed inset-0 z-[120] hidden bg-black/80 backdrop-blur-sm lg:flex lg:items-center lg:justify-center lg:p-6"
+          onClick={() => setExpandedTableHtml(null)}
+        >
+          <div
+            className="flex max-h-[92vh] w-full max-w-[1400px] flex-col overflow-hidden rounded-[24px] border border-gray-800 bg-black shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-gray-800 px-5 py-4">
+              <div className="text-sm font-semibold text-[#e7e9ea]">Table detail</div>
+              <button
+                type="button"
+                onClick={() => setExpandedTableHtml(null)}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full text-[#71767b] transition-colors hover:bg-white/5 hover:text-[#e7e9ea]"
+                aria-label="Close expanded table"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="overflow-auto p-5">
+              <div
+                ref={expandedTableRef}
+                className="inline-block min-w-full rounded-2xl border border-gray-800 bg-black
+                  [&_table]:my-0 [&_table]:border-collapse
+                  [&_th]:border [&_th]:border-gray-800 [&_th]:bg-gray-900 [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:text-sm [&_th]:font-semibold [&_th]:text-[#e7e9ea]
+                  [&_td]:border [&_td]:border-gray-800 [&_td]:px-3 [&_td]:py-2 [&_td]:align-top [&_td]:text-[#e7e9ea]
+                  [&_th]:whitespace-normal [&_td]:whitespace-normal [&_th]:break-words [&_td]:break-words
+                  [&_thead_th]:sticky [&_thead_th]:top-0 [&_thead_th]:z-[1]
+                  [&_tbody_tr:nth-child(even)]:bg-white/[0.02] [&_tbody_tr:hover]:bg-white/[0.03]"
+                dangerouslySetInnerHTML={{__html: expandedTableHtml}}
+              />
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

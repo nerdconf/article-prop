@@ -1,9 +1,9 @@
 import {NERDCONF_PROFILE_IMAGE, NERDCONF_PROFILE_URL} from '../../src/lib/proposal.js';
 import type {ProposalSnapshot} from './proposals.js';
 
-type IconName = 'message' | 'repeat' | 'heart' | 'chart' | 'bookmark' | 'download';
+type IconName = 'message' | 'repeat' | 'heart' | 'chart' | 'bookmark' | 'download' | 'expand';
 type ToneName = 'blue' | 'green' | 'pink' | 'muted';
-export const PROPOSAL_PAGE_TEMPLATE_VERSION = '2026-04-21-public-badge-circle-v1';
+export const PROPOSAL_PAGE_TEMPLATE_VERSION = '2026-04-21-table-expand-v3';
 
 function escapeHtml(value: string) {
   return value
@@ -54,6 +54,8 @@ function iconSvg(name: IconName, className = 'icon') {
       return `<svg ${common}><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>`;
     case 'download':
       return `<svg ${common}><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>`;
+    case 'expand':
+      return `<svg ${common}><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="m21 3-7 7"/><path d="m3 21 7-7"/></svg>`;
   }
 }
 
@@ -151,8 +153,115 @@ function enhancementScript() {
 (() => {
   const likeButtons = Array.from(document.querySelectorAll('[data-like-toggle]'));
   const bookmarkButtons = Array.from(document.querySelectorAll('[data-bookmark-toggle]'));
+  const modal = document.createElement('div');
+  modal.className = 'table-modal';
+  modal.innerHTML = '<div class="table-modal-card"><div class="table-modal-header"><div class="table-modal-title">Table detail</div><button type="button" class="table-modal-close" aria-label="Close expanded table"><svg viewBox="0 0 24 24" aria-hidden="true" class="icon" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m18 6-12 12"/><path d="m6 6 12 12"/></svg></button></div><div class="table-modal-content"></div></div>';
+  const modalContent = modal.querySelector('.table-modal-content');
+  const modalClose = modal.querySelector('.table-modal-close');
   let liked = false;
   let saved = true;
+
+  document.body.appendChild(modal);
+
+  const closeModal = () => {
+    modal.classList.remove('is-open');
+    document.body.style.overflow = '';
+    if (modalContent) {
+      modalContent.innerHTML = '';
+    }
+  };
+
+  const openModal = (tableHtml) => {
+    if (!window.matchMedia('(min-width: 1024px)').matches || !modalContent) {
+      return;
+    }
+
+    modalContent.innerHTML = tableHtml;
+    const table = modalContent.querySelector('table');
+    if (table) {
+      applyAdaptiveColumnWidths(table, true);
+    }
+    modal.classList.add('is-open');
+    document.body.style.overflow = 'hidden';
+  };
+
+  const applyAdaptiveColumnWidths = (table, expanded = false) => {
+    const rows = Array.from(table.rows);
+    if (!rows.length) return;
+
+    const columnCount = Math.max(...rows.map((row) => row.cells.length));
+    if (!columnCount) return;
+
+    const lengths = Array.from({length: columnCount}, () => 0);
+    rows.forEach((row) => {
+      Array.from(row.cells).forEach((cell, index) => {
+        const textLength = (cell.textContent || '').replace(/\\s+/g, ' ').trim().length;
+        lengths[index] = Math.max(lengths[index], textLength);
+      });
+    });
+
+    const widths = lengths.map((length, index) => {
+      if (index === 0) {
+        return Math.max(170, Math.min(expanded ? 230 : 210, 80 + length * 5));
+      }
+      return Math.max(expanded ? 180 : 150, Math.min(expanded ? 380 : 320, 72 + length * 3.8));
+    });
+
+    const existingColgroup = table.querySelector('colgroup');
+    if (existingColgroup) {
+      existingColgroup.remove();
+    }
+
+    const colgroup = document.createElement('colgroup');
+    widths.forEach((width) => {
+      const col = document.createElement('col');
+      col.style.width = width + 'px';
+      colgroup.appendChild(col);
+    });
+    table.insertBefore(colgroup, table.firstChild);
+
+    const totalWidth = widths.reduce((sum, width) => sum + width, 0);
+    table.style.tableLayout = 'fixed';
+    table.style.width = totalWidth + 'px';
+    table.style.minWidth = totalWidth + 'px';
+  };
+
+  const enhanceTables = () => {
+    const tables = Array.from(document.querySelectorAll('.content table'));
+
+    tables.forEach((table) => {
+      if (table.dataset.expandableTable === 'true') {
+        return;
+      }
+
+      table.dataset.expandableTable = 'true';
+      applyAdaptiveColumnWidths(table, false);
+
+      const block = document.createElement('div');
+      block.className = 'table-block';
+
+      const toolbar = document.createElement('div');
+      toolbar.className = 'table-toolbar';
+
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'table-expand';
+      button.innerHTML = '${iconSvg('expand')}<span>Expand table</span>';
+      button.addEventListener('click', () => openModal(table.outerHTML));
+
+      const scroll = document.createElement('div');
+      scroll.className = 'table-scroll';
+
+      const parent = table.parentElement;
+      if (!parent) return;
+
+      parent.insertBefore(block, table);
+      toolbar.appendChild(button);
+      block.appendChild(toolbar);
+      block.appendChild(scroll);
+      scroll.appendChild(table);
+    });
+  };
 
   const renderLiked = () => {
     likeButtons.forEach((button) => {
@@ -199,6 +308,23 @@ function enhancementScript() {
     });
   });
 
+  modal.addEventListener('click', (event) => {
+    if (event.target === modal) {
+      closeModal();
+    }
+  });
+
+  if (modalClose) {
+    modalClose.addEventListener('click', closeModal);
+  }
+
+  window.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      closeModal();
+    }
+  });
+
+  enhanceTables();
   renderLiked();
   renderSaved();
 })();
@@ -486,10 +612,44 @@ export function renderProposalPage(proposal: ProposalSnapshot, origin: string) {
       }
       .content li { margin: 8px 0; }
       .content table {
-        width: 100%;
         border-collapse: collapse;
         margin: 0 0 24px;
         font-size: 16px;
+      }
+      .table-block {
+        margin: 0 0 24px;
+      }
+      .table-toolbar {
+        display: none;
+        justify-content: flex-end;
+        margin-bottom: 8px;
+      }
+      .table-scroll {
+        overflow-x: auto;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: var(--bg);
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
+      }
+      .table-expand {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 12px;
+        border: 1px solid #374151;
+        border-radius: 999px;
+        color: #8ecdfc;
+        background: #0b0f14;
+        cursor: pointer;
+        transition: color 160ms ease, border-color 160ms ease;
+      }
+      .table-expand:hover {
+        color: #c7e8ff;
+        border-color: var(--blue);
+      }
+      .table-expand .icon {
+        width: 14px;
+        height: 14px;
       }
       .content thead th {
         background: #111827;
@@ -502,6 +662,18 @@ export function renderProposalPage(proposal: ProposalSnapshot, origin: string) {
         padding: 10px 12px;
         text-align: left;
         vertical-align: top;
+        white-space: normal;
+        word-break: break-word;
+        overflow-wrap: anywhere;
+      }
+      .content tr > :first-child {
+        width: 180px;
+        min-width: 180px;
+        max-width: 180px;
+      }
+      .content tr > :not(:first-child) {
+        width: 300px;
+        min-width: 300px;
       }
       .content a {
         color: #8ecdfc;
@@ -642,6 +814,98 @@ export function renderProposalPage(proposal: ProposalSnapshot, origin: string) {
         display: inline-block;
         vertical-align: middle;
       }
+      .table-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 120;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        background: rgba(0,0,0,0.8);
+        backdrop-filter: blur(10px);
+      }
+      .table-modal.is-open {
+        display: flex;
+      }
+      .table-modal-card {
+        display: flex;
+        flex-direction: column;
+        width: min(1400px, 100%);
+        max-height: 92vh;
+        overflow: hidden;
+        border: 1px solid var(--border);
+        border-radius: 24px;
+        background: var(--bg);
+        box-shadow: 0 24px 80px rgba(0,0,0,0.55);
+      }
+      .table-modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--border);
+      }
+      .table-modal-title {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--text);
+      }
+      .table-modal-subtitle {
+        display: none;
+      }
+      .table-modal-close {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border-radius: 999px;
+        color: var(--muted);
+        cursor: pointer;
+        transition: color 160ms ease, background-color 160ms ease;
+      }
+      .table-modal-close:hover {
+        color: var(--text);
+        background: rgba(255,255,255,0.05);
+      }
+      .table-modal-content {
+        overflow: auto;
+        padding: 20px;
+      }
+      .table-modal-content table {
+        margin: 0;
+      }
+      .table-modal-content th,
+      .table-modal-content td {
+        border: 1px solid var(--border);
+        padding: 10px 12px;
+        text-align: left;
+        vertical-align: top;
+      }
+      .table-modal-content thead th {
+        background: #111827;
+        color: var(--text);
+        font-weight: 600;
+      }
+      .table-modal-content th,
+      .table-modal-content td {
+        white-space: normal;
+        word-break: break-word;
+        overflow-wrap: anywhere;
+      }
+      .table-modal-content thead th {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+      }
+      .table-modal-content tbody tr:nth-child(even) {
+        background: rgba(255,255,255,0.02);
+      }
+      .table-modal-content tbody tr:hover {
+        background: rgba(255,255,255,0.03);
+      }
       @keyframes like-ping {
         from {
           opacity: 0.65;
@@ -661,6 +925,11 @@ export function renderProposalPage(proposal: ProposalSnapshot, origin: string) {
         .metrics-left,
         .metrics-right {
           flex-wrap: wrap;
+        }
+      }
+      @media (min-width: 1024px) {
+        .table-toolbar {
+          display: flex;
         }
       }
       @media (prefers-reduced-motion: reduce) {
