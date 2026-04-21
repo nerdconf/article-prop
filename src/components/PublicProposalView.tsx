@@ -212,6 +212,10 @@ export default function PublicProposalView({
                 prose-strong:text-[#e7e9ea]
                 prose-ul:text-[#e7e9ea] prose-ol:text-[#e7e9ea]
                 prose-li:marker:text-gray-500
+                prose-table:my-6 prose-table:w-full prose-table:border-collapse prose-table:border prose-table:border-gray-800
+                prose-thead:border-b prose-thead:border-gray-700
+                prose-th:border prose-th:border-gray-800 prose-th:bg-gray-900 prose-th:px-3 prose-th:py-2 prose-th:text-left prose-th:text-sm prose-th:font-semibold prose-th:text-[#e7e9ea]
+                prose-td:border prose-td:border-gray-800 prose-td:px-3 prose-td:py-2 prose-td:text-[#e7e9ea]
                 prose-blockquote:border-l-4 prose-blockquote:border-gray-700 prose-blockquote:pl-4 prose-blockquote:italic prose-blockquote:text-gray-400
                 prose-code:text-[#e7e9ea] prose-code:bg-gray-900 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:before:content-none prose-code:after:content-none
                 prose-pre:bg-gray-900 prose-pre:border prose-pre:border-gray-800

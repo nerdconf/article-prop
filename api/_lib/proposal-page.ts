@@ -3,7 +3,7 @@ import type {ProposalSnapshot} from './proposals.js';
 
 type IconName = 'message' | 'repeat' | 'heart' | 'chart' | 'bookmark' | 'download';
 type ToneName = 'blue' | 'green' | 'pink' | 'muted';
-export const PROPOSAL_PAGE_TEMPLATE_VERSION = '2026-04-17-preview-parity-v2';
+export const PROPOSAL_PAGE_TEMPLATE_VERSION = '2026-04-21-public-badge-circle-v1';
 
 function escapeHtml(value: string) {
   return value
@@ -58,9 +58,9 @@ function iconSvg(name: IconName, className = 'icon') {
 }
 
 function verifiedBadgeSvg(className = 'verified', color = '#1d9bf0') {
-  return `<svg viewBox="0 0 24 24" aria-hidden="true" class="${className}">
-    <path fill="${color}" d="M22.25 12c0-.81-.67-1.47-1.49-1.47h-.63a1.49 1.49 0 0 1-1.41-.98l-.23-.62a1.48 1.48 0 0 1 .3-1.53l.45-.45c.58-.58.58-1.52 0-2.08l-1.7-1.7a1.47 1.47 0 0 0-2.09 0l-.44.44a1.5 1.5 0 0 1-1.54.3l-.62-.22a1.5 1.5 0 0 1-.97-1.42v-.63A1.49 1.49 0 0 0 10.4.25H7.98A1.48 1.48 0 0 0 6.5 1.72v.63c0 .63-.4 1.2-.98 1.42l-.62.22a1.5 1.5 0 0 1-1.54-.3l-.44-.44a1.47 1.47 0 0 0-2.09 0l-1.7 1.7a1.47 1.47 0 0 0 0 2.08l.45.45c.43.43.55 1.07.3 1.53l-.23.62a1.49 1.49 0 0 1-1.41.98h-.63A1.49 1.49 0 0 0 .25 12.0v2.42c0 .81.67 1.47 1.49 1.47h.63c.63 0 1.2.4 1.41.98l.23.62c.2.52.08 1.1-.3 1.53l-.45.45a1.47 1.47 0 0 0 0 2.08l1.7 1.7c.58.58 1.52.58 2.09 0l.44-.44a1.5 1.5 0 0 1 1.54-.3l.62.22c.58.21.98.78.98 1.42v.63c0 .81.66 1.47 1.48 1.47h2.42c.82 0 1.49-.66 1.49-1.47v-.63c0-.64.39-1.21.97-1.42l.62-.22c.52-.2 1.1-.08 1.54.3l.44.44c.57.58 1.51.58 2.09 0l1.7-1.7c.58-.58.58-1.52 0-2.08l-.45-.45a1.48 1.48 0 0 1-.3-1.53l.23-.62a1.49 1.49 0 0 1 1.41-.98h.63c.82 0 1.49-.66 1.49-1.47V12Z"/>
-    <path fill="#fff" d="m10.76 16.24-3.3-3.3 1.06-1.06 2.24 2.24 4.72-4.72 1.06 1.06-5.78 5.78Z"/>
+  return `<svg viewBox="0 0 24 24" aria-hidden="true" class="${className}" style="color:${color}">
+    <circle cx="12" cy="12" r="10" fill="currentColor"/>
+    <path fill="#fff" d="m10.08 15.52-2.9-2.9 1.42-1.42 1.48 1.48 5.32-5.32 1.42 1.42-6.74 6.74Z"/>
   </svg>`;
 }
 
@@ -485,6 +485,24 @@ export function renderProposalPage(proposal: ProposalSnapshot, origin: string) {
         margin: 0 0 24px;
       }
       .content li { margin: 8px 0; }
+      .content table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 0 0 24px;
+        font-size: 16px;
+      }
+      .content thead th {
+        background: #111827;
+        color: var(--text);
+        font-weight: 600;
+      }
+      .content th,
+      .content td {
+        border: 1px solid var(--border);
+        padding: 10px 12px;
+        text-align: left;
+        vertical-align: top;
+      }
       .content a {
         color: #8ecdfc;
         text-decoration: underline;
