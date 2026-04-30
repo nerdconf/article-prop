@@ -386,7 +386,7 @@ export default function PublicProposalView({
                 prose-blockquote:border-l-4 prose-blockquote:border-gray-700 prose-blockquote:pl-4 prose-blockquote:italic prose-blockquote:text-gray-400
                 prose-code:text-[#e7e9ea] prose-code:bg-gray-900 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:before:content-none prose-code:after:content-none
                 prose-pre:bg-gray-900 prose-pre:border prose-pre:border-gray-800
-                prose-img:rounded-2xl prose-img:border prose-img:border-gray-800
+                prose-img:rounded-2xl prose-img:border prose-img:border-gray-800 prose-img:w-full prose-img:max-w-full prose-img:h-auto prose-img:bg-[#0b0f14]
                 [&_.proposal-table-block_table]:my-0
                 [&_th]:whitespace-normal [&_td]:whitespace-normal [&_th]:break-words [&_td]:break-words [&_th]:align-top [&_td]:align-top
                 [&_.proposal-table-block_.overflow-x-auto]:overflow-x-auto"

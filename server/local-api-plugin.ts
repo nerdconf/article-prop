@@ -7,8 +7,10 @@ import {
   fetchProposalPageHtml,
   getErrorResponse,
   ProposalApiError,
+  parseInlineMediaUploadInput,
   parsePublishProposalInput,
   publishProposal,
+  uploadInlineMedia,
 } from '../api/_lib/proposals.js';
 
 function getRequestOrigin(request: IncomingMessage) {
@@ -94,6 +96,14 @@ export function localProposalApiPlugin(): Plugin {
             const body = await readJsonBody(request);
             const input = parsePublishProposalInput(body);
             const result = await publishProposal(input, getRequestOrigin(request));
+            sendJson(response, 200, result);
+            return;
+          }
+
+          if (request.method === 'POST' && url.pathname === '/api/upload-inline-media') {
+            const body = await readJsonBody(request);
+            const input = parseInlineMediaUploadInput(body);
+            const result = await uploadInlineMedia(input);
             sendJson(response, 200, result);
             return;
           }

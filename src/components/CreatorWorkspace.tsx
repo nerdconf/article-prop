@@ -25,6 +25,7 @@ export default function CreatorWorkspace() {
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [shareLink, setShareLink] = useState<string | null>(null);
   const [isCopied, setIsCopied] = useState(false);
+  const [isUploadingInlineMedia, setIsUploadingInlineMedia] = useState(false);
   const editorRef = useRef<ProposalEditorHandle | null>(null);
   const dragDepthRef = useRef(0);
   const {articleTitle, contentWithoutTitle} = getDisplayContent(markdownContent, proposalTitle);
@@ -84,6 +85,89 @@ export default function CreatorWorkspace() {
       reader.onerror = () => reject(new Error(`Failed to read ${file.name}.`));
       reader.readAsDataURL(file);
     });
+
+  const insertInlineMarkdown = (value: string) => {
+    const insertion = `\n\n${value}\n\n`;
+    if (editorRef.current) {
+      editorRef.current.focus(() => {
+        editorRef.current?.insertMarkdown(insertion);
+      });
+    } else {
+      const nextMarkdown = `${markdownContent.trimEnd()}${insertion}`;
+      setMarkdownContent(nextMarkdown);
+    }
+  };
+
+  const inferAltText = (filename: string) =>
+    filename
+      .replace(/\.[^.]+$/, '')
+      .replace(/[-_]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim() || 'inline media';
+
+  const handleInlineMediaInput = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+
+    if (!file) return;
+
+    try {
+      setIsUploadingInlineMedia(true);
+
+      const dataUrl = await readFileAsDataUrl(file);
+      const response = await fetch('/api/upload-inline-media', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          filename: file.name,
+          dataUrl,
+        }),
+      });
+
+      const payload = await readJsonResponse(response);
+      if (!response.ok) {
+        throw new Error(payload?.error || 'Failed to upload inline media.');
+      }
+
+      const url = payload?.url;
+      if (typeof url !== 'string') {
+        throw new Error('Inline media upload returned an invalid URL.');
+      }
+
+      const altText = inferAltText(file.name);
+      insertInlineMarkdown(`![${altText}](${url})`);
+      setIsEditing(true);
+    } catch (error) {
+      console.error(error);
+      alert(error instanceof Error ? error.message : 'Failed to upload inline media.');
+    } finally {
+      setIsUploadingInlineMedia(false);
+    }
+  };
+
+  const handleInsertMediaUrl = () => {
+    if (!isEditing) {
+      return;
+    }
+
+    const rawUrl = window.prompt('Paste a public image or GIF URL');
+    if (!rawUrl) {
+      return;
+    }
+
+    const url = rawUrl.trim();
+    if (!/^https?:\/\//i.test(url)) {
+      alert('Media URL must start with http:// or https://');
+      return;
+    }
+
+    const rawAltText = window.prompt('Optional alt text', inferAltText(url)) || '';
+    const altText = rawAltText.trim() || inferAltText(url);
+    insertInlineMarkdown(`![${altText}](${url})`);
+    setIsEditing(true);
+  };
 
   const applyMarkdownFile = async (file: File) => {
     const newContent = await readFileAsText(file);
@@ -260,6 +344,28 @@ export default function CreatorWorkspace() {
               <span className="hidden sm:inline-block">Upload .md</span>
               <input type="file" accept=".md" className="hidden" onChange={handleMarkdownInput} />
             </label>
+            <label
+              className={`text-[#1d9bf0] font-bold text-sm cursor-pointer flex items-center space-x-1 ${isEditing ? 'hover:underline' : 'opacity-50 cursor-not-allowed'}`}
+            >
+              {isUploadingInlineMedia ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4" />}
+              <span className="hidden sm:inline-block">Inline media</span>
+              <input
+                type="file"
+                accept="image/*,.gif"
+                className="hidden"
+                onChange={handleInlineMediaInput}
+                disabled={!isEditing || isUploadingInlineMedia}
+              />
+            </label>
+            <button
+              type="button"
+              onClick={handleInsertMediaUrl}
+              disabled={!isEditing}
+              className="text-[#1d9bf0] font-bold hover:underline text-sm disabled:opacity-50 disabled:no-underline flex items-center space-x-1"
+            >
+              <LinkIcon className="w-4 h-4" />
+              <span className="hidden sm:inline-block">By URL</span>
+            </button>
             <input
               type="text"
               value={proposalTitle}

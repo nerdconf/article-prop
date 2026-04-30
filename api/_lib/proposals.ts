@@ -12,6 +12,11 @@ export interface PublishProposalInput {
   coverImage: string | null;
 }
 
+export interface UploadInlineMediaInput {
+  filename: string;
+  dataUrl: string;
+}
+
 export interface ProposalSnapshot {
   id: string;
   slug: string | null;
@@ -27,6 +32,7 @@ const MAX_TITLE_LENGTH = 200;
 const MAX_SLUG_LENGTH = 80;
 const MAX_MARKDOWN_LENGTH = 500_000;
 const MAX_COVER_IMAGE_LENGTH = 2_000_000;
+const MAX_INLINE_MEDIA_DATA_URL_LENGTH = 14_000_000;
 const PROPOSAL_CACHE_TTL_MS = 60_000;
 const PROPOSAL_ID_PATTERN = /^[a-f0-9-]{36}$/i;
 const PROPOSAL_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -64,6 +70,12 @@ function proposalSlugPath(slug: string) {
 
 function proposalHtmlPath(slug: string) {
   return `proposals/pages/${slug}.html`;
+}
+
+function proposalAssetPath(filename: string) {
+  const extension = filename.includes('.') ? filename.split('.').pop()?.toLowerCase() : '';
+  const safeExtension = extension && /^[a-z0-9]+$/.test(extension) ? extension : 'bin';
+  return `proposals/assets/${crypto.randomUUID()}.${safeExtension}`;
 }
 
 function assertValidProposalId(id: string | null | undefined) {
@@ -134,6 +146,31 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
+function sanitizeFilename(filename: string) {
+  return filename
+    .trim()
+    .replace(/^.*[\\/]/, '')
+    .replace(/[^a-zA-Z0-9._-]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'inline-media';
+}
+
+function parseDataUrl(dataUrl: string) {
+  const match = dataUrl.match(/^data:([^;,]+);base64,(.+)$/);
+  if (!match) {
+    throw new ProposalApiError(400, 'Inline media must be a base64 data URL.');
+  }
+
+  const mimeType = match[1];
+  const base64 = match[2];
+
+  if (!mimeType.startsWith('image/')) {
+    throw new ProposalApiError(400, 'Inline media must be an image or gif.');
+  }
+
+  const buffer = Buffer.from(base64, 'base64');
+  return {mimeType, buffer};
+}
+
 export function parsePublishProposalInput(body: unknown): PublishProposalInput {
   if (!isRecord(body)) {
     throw new ProposalApiError(400, 'Invalid publish payload.');
@@ -180,6 +217,28 @@ export function parsePublishProposalInput(body: unknown): PublishProposalInput {
     markdownContent,
     coverImage,
   };
+}
+
+export function parseInlineMediaUploadInput(body: unknown): UploadInlineMediaInput {
+  if (!isRecord(body)) {
+    throw new ProposalApiError(400, 'Invalid inline media payload.');
+  }
+
+  const rawFilename = body.filename;
+  const rawDataUrl = body.dataUrl;
+
+  if (typeof rawFilename !== 'string' || typeof rawDataUrl !== 'string') {
+    throw new ProposalApiError(400, 'Inline media payload must include filename and dataUrl.');
+  }
+
+  const filename = sanitizeFilename(rawFilename);
+  const dataUrl = rawDataUrl.trim();
+
+  if (!dataUrl || dataUrl.length > MAX_INLINE_MEDIA_DATA_URL_LENGTH) {
+    throw new ProposalApiError(400, 'Inline media is too large.');
+  }
+
+  return {filename, dataUrl};
 }
 
 function parseStoredSnapshot(data: unknown): ProposalSnapshot {
@@ -307,6 +366,22 @@ export async function publishProposal(input: PublishProposalInput, origin: strin
     blobUrl: blob.url,
     htmlArtifactUrl: htmlBlob.url,
     shareUrl: shareUrl.toString(),
+  };
+}
+
+export async function uploadInlineMedia(input: UploadInlineMediaInput) {
+  requireBlobToken();
+
+  const {mimeType, buffer} = parseDataUrl(input.dataUrl);
+  const blob = await put(proposalAssetPath(input.filename), buffer, {
+    access: 'public',
+    addRandomSuffix: false,
+    contentType: mimeType,
+  });
+
+  return {
+    url: blob.url,
+    filename: input.filename,
   };
 }
 

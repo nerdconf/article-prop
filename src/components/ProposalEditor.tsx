@@ -17,7 +17,7 @@ import {
 import '@mdxeditor/editor/style.css';
 import type { MutableRefObject } from 'react';
 
-export type ProposalEditorHandle = Pick<MDXEditorMethods, 'setMarkdown'>;
+export type ProposalEditorHandle = Pick<MDXEditorMethods, 'setMarkdown' | 'insertMarkdown' | 'focus'>;
 
 type ProposalEditorProps = {
   editorRef: MutableRefObject<ProposalEditorHandle | null>;

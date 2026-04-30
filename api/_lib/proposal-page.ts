@@ -697,6 +697,16 @@ export function renderProposalPage(proposal: ProposalSnapshot, origin: string) {
         border-radius: 6px;
         font-size: 0.9em;
       }
+      .content img {
+        display: block;
+        width: 100%;
+        max-width: 100%;
+        height: auto;
+        margin: 0 0 24px;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: #0b0f14;
+      }
       .content pre {
         background: #111827;
         border: 1px solid var(--border);
