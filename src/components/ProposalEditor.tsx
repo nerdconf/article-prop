@@ -1,6 +1,7 @@
 import {
   MDXEditor,
   headingsPlugin,
+  imagePlugin,
   listsPlugin,
   quotePlugin,
   thematicBreakPlugin,
@@ -40,6 +41,7 @@ export default function ProposalEditor({
       className="mdxeditor-dark dark-theme dark-editor"
       plugins={[
         headingsPlugin(),
+        imagePlugin(),
         listsPlugin(),
         quotePlugin(),
         thematicBreakPlugin(),

@@ -86,6 +86,31 @@ export default function CreatorWorkspace() {
       reader.readAsDataURL(file);
     });
 
+  const validateImageUrl = (url: string): Promise<void> =>
+    new Promise((resolve, reject) => {
+      const image = new Image();
+      const timeoutId = window.setTimeout(() => {
+        image.src = '';
+        reject(new Error('The media URL took too long to load.'));
+      }, 8000);
+
+      image.onload = () => {
+        window.clearTimeout(timeoutId);
+        if (!image.naturalWidth || !image.naturalHeight) {
+          reject(new Error('The media URL did not return a usable image.'));
+          return;
+        }
+        resolve();
+      };
+
+      image.onerror = () => {
+        window.clearTimeout(timeoutId);
+        reject(new Error('The media URL could not be loaded as an image or GIF.'));
+      };
+
+      image.src = url;
+    });
+
   const insertInlineMarkdown = (value: string) => {
     const insertion = `\n\n${value}\n\n`;
     if (editorRef.current) {
@@ -148,25 +173,30 @@ export default function CreatorWorkspace() {
   };
 
   const handleInsertMediaUrl = () => {
-    if (!isEditing) {
-      return;
-    }
+    if (!isEditing) return;
 
-    const rawUrl = window.prompt('Paste a public image or GIF URL');
-    if (!rawUrl) {
-      return;
-    }
+    void (async () => {
+      const rawUrl = window.prompt('Paste a public image or GIF URL');
+      if (!rawUrl) {
+        return;
+      }
 
-    const url = rawUrl.trim();
-    if (!/^https?:\/\//i.test(url)) {
-      alert('Media URL must start with http:// or https://');
-      return;
-    }
+      const url = rawUrl.trim();
+      if (!/^https?:\/\//i.test(url)) {
+        alert('Media URL must start with http:// or https://');
+        return;
+      }
 
-    const rawAltText = window.prompt('Optional alt text', inferAltText(url)) || '';
-    const altText = rawAltText.trim() || inferAltText(url);
-    insertInlineMarkdown(`![${altText}](${url})`);
-    setIsEditing(true);
+      try {
+        await validateImageUrl(url);
+        const rawAltText = window.prompt('Optional alt text', inferAltText(url)) || '';
+        const altText = rawAltText.trim() || inferAltText(url);
+        insertInlineMarkdown(`![${altText}](${url})`);
+        setIsEditing(true);
+      } catch (error) {
+        alert(error instanceof Error ? error.message : 'The media URL is not a valid image.');
+      }
+    })();
   };
 
   const applyMarkdownFile = async (file: File) => {
