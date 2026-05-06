@@ -81,6 +81,53 @@
 .mdxeditor-dark [data-lexical-editor] h2 { font-size: 1.5rem; }
 .mdxeditor-dark [data-lexical-editor] h3 { font-size: 1.25rem; }
 
+.mdxeditor-dark [data-lexical-editor] h2[data-collapsible-heading="true"] {
+  position: relative;
+  padding-left: 1.5rem;
+}
+
+.mdxeditor-dark [data-lexical-editor] h2[data-collapsible-heading="true"]::before {
+  content: '';
+  position: absolute;
+  left: 0.1rem;
+  top: 0.42em;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-right: 2px solid #8ecdfc;
+  border-bottom: 2px solid #8ecdfc;
+  transform: rotate(45deg);
+  transform-origin: center;
+  transition: transform 180ms ease;
+}
+
+.mdxeditor-dark [data-lexical-editor] h2[data-collapsible-heading="true"][data-collapsed="true"]::before {
+  transform: rotate(-45deg);
+}
+
+.proposal-collapsible-scope h2[data-collapsible-heading="true"] {
+  position: relative;
+  padding-left: 1.5rem;
+  cursor: pointer;
+}
+
+.proposal-collapsible-scope h2[data-collapsible-heading="true"]::before {
+  content: '';
+  position: absolute;
+  left: 0.1rem;
+  top: 0.42em;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-right: 2px solid #8ecdfc;
+  border-bottom: 2px solid #8ecdfc;
+  transform: rotate(45deg);
+  transform-origin: center;
+  transition: transform 180ms ease;
+}
+
+.proposal-collapsible-scope h2[data-collapsible-heading="true"][data-collapsed="true"]::before {
+  transform: rotate(-45deg);
+}
+
 .mdxeditor-dark [data-lexical-editor] p {
   margin-bottom: 1.5rem;
 }

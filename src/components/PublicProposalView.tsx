@@ -12,6 +12,7 @@ import {
 
 import { NerdConfLogo } from './NerdConfLogo';
 import VerifiedBadge from './VerifiedBadge';
+import {enhanceCollapsibleSections} from '../lib/collapsibleSections';
 import {
   DEFAULT_PROPOSAL_TITLE,
   NERDCONF_PROFILE_IMAGE,
@@ -175,14 +176,19 @@ export default function PublicProposalView({
       });
     };
 
+    const cleanupCollapsibleSections = enhanceCollapsibleSections(root);
     enhanceTables();
 
     const observer = new MutationObserver(() => {
       enhanceTables();
+      enhanceCollapsibleSections(root);
     });
 
     observer.observe(root, {childList: true, subtree: true});
-    return () => observer.disconnect();
+    return () => {
+      cleanupCollapsibleSections();
+      observer.disconnect();
+    };
   }, [htmlContent, legacyMarkdownContent]);
 
   useEffect(() => {
@@ -370,7 +376,7 @@ export default function PublicProposalView({
 
           <div className="border-t border-gray-800 pt-6">
             <div
-              className="prose prose-invert prose-lg max-w-none
+              className="proposal-collapsible-scope prose prose-invert prose-lg max-w-none
                 prose-p:text-[#e7e9ea] prose-p:leading-relaxed prose-p:mb-6
                 prose-headings:text-[#e7e9ea] prose-headings:font-bold prose-headings:tracking-tight
                 prose-h2:text-2xl prose-h2:mt-8 prose-h2:mb-4
@@ -391,15 +397,15 @@ export default function PublicProposalView({
                 [&_th]:whitespace-normal [&_td]:whitespace-normal [&_th]:break-words [&_td]:break-words [&_th]:align-top [&_td]:align-top
                 [&_.proposal-table-block_.overflow-x-auto]:overflow-x-auto"
             >
-              {htmlContent ? (
-                <div ref={contentRef} dangerouslySetInnerHTML={{__html: htmlContent}} />
-              ) : legacyMarkdownContent ? (
-                <Suspense fallback={null}>
-                  <div ref={contentRef}>
+              <div ref={contentRef}>
+                {htmlContent ? (
+                  <div dangerouslySetInnerHTML={{__html: htmlContent}} />
+                ) : legacyMarkdownContent ? (
+                  <Suspense fallback={null}>
                     <LegacyMarkdownContent markdownContent={legacyMarkdownContent} />
-                  </div>
-                </Suspense>
-              ) : null}
+                  </Suspense>
+                ) : null}
+              </div>
             </div>
           </div>
 

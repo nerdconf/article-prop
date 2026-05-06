@@ -3,7 +3,7 @@ import type {ProposalSnapshot} from './proposals.js';
 
 type IconName = 'message' | 'repeat' | 'heart' | 'chart' | 'bookmark' | 'download' | 'expand';
 type ToneName = 'blue' | 'green' | 'pink' | 'muted';
-export const PROPOSAL_PAGE_TEMPLATE_VERSION = '2026-04-21-table-expand-v3';
+export const PROPOSAL_PAGE_TEMPLATE_VERSION = '2026-05-07-collapsible-h2-v1';
 
 function escapeHtml(value: string) {
   return value
@@ -263,6 +263,46 @@ function enhancementScript() {
     });
   };
 
+  const getSectionNodes = (heading) => {
+    const nodes = [];
+    let current = heading.nextElementSibling;
+    while (current) {
+      if (current.tagName === 'H2') {
+        break;
+      }
+      nodes.push(current);
+      current = current.nextElementSibling;
+    }
+    return nodes;
+  };
+
+  const applyHeadingState = (heading) => {
+    const collapsed = heading.dataset.collapsed === 'true';
+    const nodes = getSectionNodes(heading);
+    heading.dataset.collapsibleHeading = 'true';
+    heading.setAttribute('role', 'button');
+    heading.setAttribute('tabindex', '0');
+    heading.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    nodes.forEach((node) => {
+      node.style.display = collapsed ? 'none' : '';
+    });
+  };
+
+  const toggleHeading = (heading) => {
+    heading.dataset.collapsed = heading.dataset.collapsed === 'true' ? 'false' : 'true';
+    applyHeadingState(heading);
+  };
+
+  const enhanceCollapsibleSections = () => {
+    const headings = Array.from(document.querySelectorAll('.content h2'));
+    headings.forEach((heading) => {
+      if (!heading.dataset.collapsed) {
+        heading.dataset.collapsed = 'true';
+      }
+      applyHeadingState(heading);
+    });
+  };
+
   const renderLiked = () => {
     likeButtons.forEach((button) => {
       button.classList.toggle('is-liked', liked);
@@ -324,7 +364,31 @@ function enhancementScript() {
     }
   });
 
+  document.addEventListener('click', (event) => {
+    const heading = event.target instanceof HTMLElement
+      ? event.target.closest('.content h2[data-collapsible-heading="true"]')
+      : null;
+    if (!(heading instanceof HTMLElement)) {
+      return;
+    }
+    toggleHeading(heading);
+  });
+
+  document.addEventListener('keydown', (event) => {
+    const heading = event.target instanceof HTMLElement
+      ? event.target.closest('.content h2[data-collapsible-heading="true"]')
+      : null;
+    if (!(heading instanceof HTMLElement)) {
+      return;
+    }
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      toggleHeading(heading);
+    }
+  });
+
   enhanceTables();
+  enhanceCollapsibleSections();
   renderLiked();
   renderSaved();
 })();
@@ -604,6 +668,27 @@ export function renderProposalPage(proposal: ProposalSnapshot, origin: string) {
         line-height: 1.1;
         margin: 32px 0 16px;
         letter-spacing: -0.02em;
+      }
+      .content h2[data-collapsible-heading="true"] {
+        position: relative;
+        padding-left: 24px;
+        cursor: pointer;
+      }
+      .content h2[data-collapsible-heading="true"]::before {
+        content: '';
+        position: absolute;
+        left: 2px;
+        top: 0.42em;
+        width: 9px;
+        height: 9px;
+        border-right: 2px solid #8ecdfc;
+        border-bottom: 2px solid #8ecdfc;
+        transform: rotate(45deg);
+        transform-origin: center;
+        transition: transform 180ms ease;
+      }
+      .content h2[data-collapsible-heading="true"][data-collapsed="true"]::before {
+        transform: rotate(-45deg);
       }
       .content ul,
       .content ol {

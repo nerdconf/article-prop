@@ -16,7 +16,8 @@ import {
   type MDXEditorMethods,
 } from '@mdxeditor/editor';
 import '@mdxeditor/editor/style.css';
-import type { MutableRefObject } from 'react';
+import {useEffect, useRef, type MutableRefObject} from 'react';
+import {enhanceCollapsibleSections} from '../lib/collapsibleSections';
 
 export type ProposalEditorHandle = Pick<MDXEditorMethods, 'setMarkdown' | 'insertMarkdown' | 'focus'>;
 
@@ -31,34 +32,56 @@ export default function ProposalEditor({
   markdown,
   onChange,
 }: ProposalEditorProps) {
+  const editorContainerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const root = editorContainerRef.current?.querySelector('[data-lexical-editor="true"]');
+    if (!(root instanceof HTMLElement)) {
+      return;
+    }
+
+    const cleanup = enhanceCollapsibleSections(root, {editorMode: true});
+    const observer = new MutationObserver(() => {
+      enhanceCollapsibleSections(root, {editorMode: true});
+    });
+
+    observer.observe(root, {childList: true, subtree: true});
+    return () => {
+      cleanup();
+      observer.disconnect();
+    };
+  }, [markdown]);
+
   return (
-    <MDXEditor
-      ref={(instance) => {
-        editorRef.current = instance;
-      }}
-      markdown={markdown}
-      onChange={onChange}
-      className="mdxeditor-dark dark-theme dark-editor"
-      plugins={[
-        headingsPlugin(),
-        imagePlugin(),
-        listsPlugin(),
-        quotePlugin(),
-        thematicBreakPlugin(),
-        markdownShortcutPlugin(),
-        linkPlugin(),
-        linkDialogPlugin(),
-        toolbarPlugin({
-          toolbarContents: () => (
-            <>
-              <UndoRedo />
-              <BoldItalicUnderlineToggles />
-              <BlockTypeSelect />
-              <CreateLink />
-            </>
-          ),
-        }),
-      ]}
-    />
+    <div ref={editorContainerRef}>
+      <MDXEditor
+        ref={(instance) => {
+          editorRef.current = instance;
+        }}
+        markdown={markdown}
+        onChange={onChange}
+        className="mdxeditor-dark dark-theme dark-editor"
+        plugins={[
+          headingsPlugin(),
+          imagePlugin(),
+          listsPlugin(),
+          quotePlugin(),
+          thematicBreakPlugin(),
+          markdownShortcutPlugin(),
+          linkPlugin(),
+          linkDialogPlugin(),
+          toolbarPlugin({
+            toolbarContents: () => (
+              <>
+                <UndoRedo />
+                <BoldItalicUnderlineToggles />
+                <BlockTypeSelect />
+                <CreateLink />
+              </>
+            ),
+          }),
+        ]}
+      />
+    </div>
   );
 }
